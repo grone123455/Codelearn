@@ -1,4 +1,4 @@
-```vue
+
 <template>
   <section class="pagina">
     <button
@@ -8,7 +8,7 @@
       ← Volver al curso
     </button>
 
-    <!-- CARGANDO -->
+    <!-- CARGANDO UNIDAD -->
     <div
       v-if="cargando"
       class="estado-pagina"
@@ -20,7 +20,7 @@
       </p>
     </div>
 
-    <!-- ERROR -->
+    <!-- ERROR AL CARGAR UNIDAD -->
     <div
       v-else-if="error"
       class="estado-pagina"
@@ -93,7 +93,7 @@
           </p>
         </div>
 
-        <!-- CARGANDO LECCIONES -->
+        <!-- CARGANDO LECCIONES Y ACTIVIDADES -->
         <div
           v-if="cargandoLecciones"
           class="sin-lecciones"
@@ -103,11 +103,11 @@
           </h2>
 
           <p>
-            Estamos obteniendo las lecciones de esta unidad.
+            Estamos obteniendo las lecciones y sus actividades.
           </p>
         </div>
 
-        <!-- ERROR LECCIONES -->
+        <!-- ERROR AL CARGAR LECCIONES -->
         <div
           v-else-if="errorLecciones"
           class="sin-lecciones"
@@ -118,6 +118,27 @@
 
           <p>
             Ocurrió un error al obtener el contenido.
+          </p>
+
+          <button
+            class="boton"
+            @click="cargarLecciones"
+          >
+            Reintentar
+          </button>
+        </div>
+
+        <!-- ERROR AL CARGAR ACTIVIDADES -->
+        <div
+          v-else-if="errorActividades"
+          class="sin-lecciones"
+        >
+          <h2>
+            No se pudieron cargar las actividades
+          </h2>
+
+          <p>
+            Ocurrió un error al obtener las actividades desde la base de datos.
           </p>
 
           <button
@@ -280,6 +301,7 @@ const error = ref(false)
 
 const cargandoLecciones = ref(false)
 const errorLecciones = ref(false)
+const errorActividades = ref(false)
 
 const resultadosActividades = ref({})
 
@@ -291,6 +313,11 @@ async function cargarUnidad() {
   try {
     cargando.value = true
     error.value = false
+    unidad.value = null
+    lecciones.value = []
+    resultadosActividades.value = {}
+    errorLecciones.value = false
+    errorActividades.value = false
 
     const resultado = await obtenerUnidad(
       route.params.id
@@ -325,6 +352,7 @@ async function cargarLecciones() {
   try {
     cargandoLecciones.value = true
     errorLecciones.value = false
+    errorActividades.value = false
 
     lecciones.value =
       await obtenerLeccionesPorUnidad(
@@ -349,6 +377,7 @@ async function cargarLecciones() {
 // =====================================
 
 async function cargarActividades() {
+  errorActividades.value = false
   resultadosActividades.value = {}
 
   for (const leccion of lecciones.value) {
@@ -368,9 +397,11 @@ async function cargarActividades() {
         e
       )
 
-      resultadosActividades.value[
-        leccion.id
-      ] = []
+      errorActividades.value = true
+
+      // No tratar un error de consulta como
+      // si la lección no tuviera actividades.
+      return
     }
   }
 }
@@ -407,8 +438,7 @@ function leccionAprobada(leccionId) {
   const resultadosLeccion =
     resultados.filter(
       resultado =>
-        resultado.leccionId ===
-        leccionId
+        resultado.leccionId === leccionId
     )
 
   const respuestasCorrectas =
@@ -432,8 +462,7 @@ function leccionDesbloqueada(leccion) {
   const leccionAnterior =
     lecciones.value.find(
       leccionActual =>
-        leccionActual.orden ===
-        leccion.orden - 1
+        leccionActual.orden === leccion.orden - 1
     )
 
   if (!leccionAnterior) {
@@ -481,28 +510,19 @@ onMounted(() => {
 <style scoped>
 .pagina {
   max-width: 1000px;
-
   margin: 0 auto;
-
   padding: 50px 7% 80px;
 }
 
 .volver {
   margin-bottom: 40px;
-
   padding: 8px 0;
-
   border: none;
-
   background: transparent;
-
   color: #94a3b8;
-
   font-size: 0.95rem;
   font-weight: 600;
-
   cursor: pointer;
-
   transition: 0.2s;
 }
 
@@ -516,27 +536,21 @@ onMounted(() => {
 
 .etiqueta {
   color: #22c55e;
-
   font-size: 0.75rem;
   font-weight: 700;
-
   letter-spacing: 2px;
 }
 
 h1 {
   margin: 12px 0 15px;
-
   color: #f8fafc;
-
   font-size: 3rem;
   line-height: 1.15;
 }
 
 .encabezado p {
   margin: 0;
-
   color: #94a3b8;
-
   font-size: 1.05rem;
   line-height: 1.8;
 }
@@ -548,11 +562,8 @@ h1 {
 .estado {
   display: inline-flex;
   align-items: center;
-
   padding: 7px 12px;
-
   border-radius: 8px;
-
   font-size: 0.8rem;
   font-weight: 700;
 }
@@ -577,39 +588,29 @@ h1 {
 
 .lecciones-encabezado h2 {
   margin: 10px 0 8px;
-
   color: #f8fafc;
-
   font-size: 1.8rem;
 }
 
 .lecciones-encabezado p {
   margin: 0;
-
   color: #94a3b8;
-
   font-size: 0.95rem;
 }
 
 .lista-lecciones {
   display: flex;
-
   flex-direction: column;
-
   gap: 18px;
 }
 
 .leccion-card {
   display: flex;
   gap: 20px;
-
   padding: 25px;
-
   background: #1e293b;
-
   border: 1px solid #334155;
   border-radius: 16px;
-
   transition:
     transform 0.2s,
     border-color 0.2s,
@@ -618,7 +619,6 @@ h1 {
 
 .leccion-card:not(.bloqueada):hover {
   transform: translateY(-2px);
-
   border-color: #22c55e;
 }
 
@@ -628,28 +628,21 @@ h1 {
 
 .numero {
   flex-shrink: 0;
-
   width: 48px;
   height: 48px;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   background: #0f172a;
-
   border: 1px solid #22c55e;
   border-radius: 10px;
-
   color: #22c55e;
-
   font-size: 1.1rem;
   font-weight: 800;
 }
 
 .leccion-card.bloqueada .numero {
   border-color: #475569;
-
   color: #64748b;
 }
 
@@ -660,19 +653,15 @@ h1 {
 
 .encabezado-leccion {
   display: flex;
-
   align-items: flex-start;
   justify-content: space-between;
-
   gap: 20px;
 }
 
 .numero-leccion {
   color: #22c55e;
-
   font-size: 0.7rem;
   font-weight: 700;
-
   letter-spacing: 1.5px;
 }
 
@@ -682,58 +671,44 @@ h1 {
 
 .leccion-contenido h3 {
   margin: 7px 0 9px;
-
   color: #f8fafc;
-
   font-size: 1.3rem;
 }
 
 .leccion-contenido p {
   margin: 0 0 18px;
-
   color: #94a3b8;
-
   font-size: 0.92rem;
   line-height: 1.7;
 }
 
 .estado-leccion {
   flex-shrink: 0;
-
   padding: 5px 9px;
-
   border-radius: 6px;
-
   font-size: 0.7rem;
   font-weight: 700;
 }
 
 .estado-leccion.disponible {
   background: rgba(34, 197, 94, 0.12);
-
   color: #22c55e;
 }
 
 .estado-leccion.bloqueada {
   background: rgba(100, 116, 139, 0.15);
-
   color: #94a3b8;
 }
 
 .boton {
   padding: 10px 17px;
-
   border: none;
   border-radius: 9px;
-
   background: #22c55e;
   color: #0f172a;
-
   font-size: 0.85rem;
   font-weight: 700;
-
   cursor: pointer;
-
   transition: 0.2s;
 }
 
@@ -743,76 +718,58 @@ h1 {
 
 .texto-bloqueada {
   color: #64748b;
-
   font-size: 0.85rem;
   font-weight: 600;
 }
 
 .bloqueo {
   max-width: 600px;
-
   margin: 70px auto 0;
-
   padding: 45px 30px;
-
   text-align: center;
-
   background: #1e293b;
-
   border: 1px solid #334155;
   border-radius: 18px;
 }
 
 .bloqueo-icono {
   margin-bottom: 15px;
-
   font-size: 2.5rem;
 }
 
 .bloqueo h2 {
   margin: 0 0 10px;
-
   color: #f8fafc;
-
   font-size: 1.6rem;
 }
 
 .bloqueo p {
   margin: 0 auto 25px;
-
   max-width: 450px;
-
   color: #94a3b8;
-
   line-height: 1.7;
 }
 
 .sin-lecciones {
   padding: 45px;
-
   text-align: center;
-
   background: #1e293b;
-
   border: 1px solid #334155;
   border-radius: 16px;
 }
 
 .sin-lecciones h2 {
   margin: 0 0 10px;
-
   color: #f8fafc;
 }
 
 .sin-lecciones p {
   margin: 0 0 20px;
-
   color: #94a3b8;
 }
 
 .estado-pagina {
   padding: 80px 20px;
-
   text-align: center;
 }
 
@@ -822,13 +779,11 @@ h1 {
 
 .estado-pagina p {
   margin: 0 0 25px;
-
   color: #94a3b8;
 }
 
 .error {
   padding: 80px 20px;
-
   text-align: center;
 }
 
@@ -838,7 +793,6 @@ h1 {
 
 .error p {
   margin: 0 0 20px;
-
   color: #94a3b8;
 }
 
@@ -861,14 +815,12 @@ h1 {
 
   .leccion-card {
     gap: 14px;
-
     padding: 20px;
   }
 
   .numero {
     width: 40px;
     height: 40px;
-
     font-size: 0.95rem;
   }
 

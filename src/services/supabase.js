@@ -7,3 +7,18 @@ export const supabase = createClient(
   supabaseUrl,
   supabasePublishableKey
 )
+
+supabase.auth.getSession().then(({ data }) => {
+  const token = data.session?.access_token
+
+  if (!token) {
+    console.log("CodeLearn: no hay una sesión activa")
+    return
+  }
+
+  const payload = JSON.parse(
+    atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))
+  )
+
+  console.log("Rol del token:", payload.role)
+})

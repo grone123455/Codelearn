@@ -1,195 +1,213 @@
-// Function: verificar-respuesta
-//
-// Recibe el identificador de una pregunta y el de la opción seleccionada,
-// y devuelve si la respuesta es correcta y su explicación.
-//
-// La tabla `soluciones` no tiene políticas de lectura para el rol público,
-// por eso esta función la consulta desde el servidor con service role
-// (ctx.supabaseAdmin). El cliente nunca descarga el conjunto de soluciones.
 
-import "@supabase/functions-js/edge-runtime.d.ts"
-import { withSupabase } from "@supabase/server"
+import { withSupabase } from "../_shared/withSupabase.ts";
 
-const encabezados = {
-  "Content-Type": "application/json"
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+function responder(
+  datos: Record<string, unknown>,
+  status = 200,
+) {
+  return new Response(JSON.stringify(datos), {
+    status,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+    },
+  });
 }
 
-function respuestaError(status, mensaje) {
-  return Response.json(
-    { error: mensaje },
-    { status, headers: encabezados }
-  )
-}
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", {
+      headers: corsHeaders,
+    });
+  }
 
-export default {
-  fetch: withSupabase(
-    { auth: ["publishable", "secret"] },
+  if (req.method !== "POST") {
+    return responder(
+      { error: "Método no permitido." },
+      405,
+    );
+  }
 
-    async (req, ctx) => {
-      if (req.method !== "POST") {
-        return respuestaError(
-          405,
-          "Método no permitido. Utilizá POST."
-        )
-      }
+  try {
+    const ctx = await withSupabase(req);
 
-      let cuerpo = null
+    const {
+      preguntaId,
+      opcionId,
+      intentoId,
+      leccionId,
+    } = await req.json();
 
-      try {
-        cuerpo = await req.json()
-      } catch {
-        return respuestaError(
-          400,
-          "El cuerpo de la petición no es un JSON válido."
-        )
-      }
+    if (!preguntaId || !opcionId || !intentoId || !leccionId) {
+      return responder(
+        { error: "Faltan datos para verificar la respuesta." },
+        400,
+      );
+    }
 
-      const { preguntaId, opcionId } =
-        cuerpo || {}
+    const { data: usuarioData, error: usuarioError } =
+      await ctx.supabase.auth.getUser();
 
-      if (
-        typeof preguntaId !== "string" ||
-        typeof opcionId !== "string" ||
-        preguntaId.length === 0 ||
-        opcionId.length === 0
-      ) {
-        return respuestaError(
-          400,
-          "Se requieren los campos preguntaId y opcionId."
-        )
-      }
+    const usuario = usuarioData?.user;
 
-      // 1) La pregunta debe existir y estar disponible:
-      //    su unidad debe estar publicada y su curso disponible.
+    if (usuarioError || !usuario) {
+      return responder(
+        { error: "Tenés que iniciar sesión para responder." },
+        401,
+      );
+    }
 
-      const {
-        data: pregunta,
-        error: errorPregunta
-      } = await ctx.supabaseAdmin
+    // Comprobar que la pregunta pertenece a la lección indicada.
+    const { data: pregunta, error: preguntaError } =
+      await ctx.supabase
         .from("preguntas")
-        .select(
-          `
-          id,
-          explicacion,
-          lecciones (
-            id,
-            unidades (
-              estado,
-              cursos ( estado )
-            )
-          )
-        `
-        )
+        .select("id, leccion_id, explicacion")
         .eq("id", preguntaId)
-        .maybeSingle()
+        .eq("leccion_id", leccionId)
+        .maybeSingle();
 
-      if (errorPregunta) {
-        console.error(
-          "Error al consultar la pregunta:",
-          errorPregunta
-        )
+    if (preguntaError || !pregunta) {
+      console.error("Error al consultar la pregunta:", preguntaError);
 
-        return respuestaError(
-          500,
-          "No se pudo consultar la pregunta."
-        )
-      }
+      return responder(
+        { error: "La pregunta no pertenece a esta lección." },
+        400,
+      );
+    }
 
-      if (!pregunta) {
-        return respuestaError(
-          404,
-          "La pregunta solicitada no existe."
-        )
-      }
-
-      const unidad =
-        pregunta.lecciones?.unidades
-
-      const disponible =
-        unidad?.estado === "publicada" &&
-        unidad?.cursos?.estado === "disponible"
-
-      if (!disponible) {
-        return respuestaError(
-          404,
-          "La pregunta solicitada no está disponible."
-        )
-      }
-
-      // 2) La opción seleccionada debe pertenecer a esa pregunta.
-
-      const {
-        data: opcion,
-        error: errorOpcion
-      } = await ctx.supabaseAdmin
+    // Comprobar que la opción pertenece a la pregunta.
+    const { data: opcion, error: opcionError } =
+      await ctx.supabase
         .from("opciones")
-        .select("id")
+        .select("id, pregunta_id")
         .eq("id", opcionId)
         .eq("pregunta_id", preguntaId)
-        .maybeSingle()
+        .maybeSingle();
 
-      if (errorOpcion) {
-        console.error(
-          "Error al consultar la opción:",
-          errorOpcion
-        )
+    if (opcionError || !opcion) {
+      console.error("Error al consultar la opción:", opcionError);
 
-        return respuestaError(
-          500,
-          "No se pudo consultar la opción seleccionada."
-        )
-      }
+      return responder(
+        { error: "La opción seleccionada no es válida." },
+        400,
+      );
+    }
 
-      if (!opcion) {
-        return respuestaError(
-          404,
-          "La opción seleccionada no pertenece a esta pregunta."
-        )
-      }
-
-      // 3) Se obtiene la solución almacenada (solo desde el servidor).
-
-      const {
-        data: solucion,
-        error: errorSolucion
-      } = await ctx.supabaseAdmin
+    // Consultar la solución solamente desde el servidor.
+    const { data: solucion, error: solucionError } =
+      await ctx.supabaseAdmin
         .from("soluciones")
         .select("opcion_correcta_id")
         .eq("pregunta_id", preguntaId)
-        .maybeSingle()
+        .maybeSingle();
 
-      if (errorSolucion) {
-        console.error(
-          "Error al consultar la solución:",
-          errorSolucion
-        )
+    if (solucionError || !solucion) {
+      console.error(
+        "Error al consultar la solución:",
+        solucionError,
+      );
 
-        return respuestaError(
-          500,
-          "No se pudo consultar la solución."
-        )
-      }
-
-      if (!solucion) {
-        return respuestaError(
-          500,
-          "Esta pregunta todavía no tiene una solución registrada."
-        )
-      }
-
-      // 4) Se compara la selección con la solución.
-
-      const correcta =
-        solucion.opcion_correcta_id ===
-        opcionId
-
-      return Response.json(
-        {
-          correcta,
-          explicacion: pregunta.explicacion
-        },
-        { headers: encabezados }
-      )
+      return responder(
+        { error: "No se pudo verificar la respuesta." },
+        500,
+      );
     }
-  )
-}
+
+    const correcta =
+      solucion.opcion_correcta_id === opcionId;
+
+    // Buscar el intento del usuario.
+    const { data: intentoExistente, error: intentoConsultaError } =
+      await ctx.supabase
+        .from("intentos_leccion")
+        .select("id")
+        .eq("id", intentoId)
+        .eq("usuario_id", usuario.id)
+        .maybeSingle();
+
+    if (intentoConsultaError) {
+      console.error(
+        "Error al consultar el intento:",
+        intentoConsultaError,
+      );
+
+      return responder(
+        { error: "No se pudo guardar el intento." },
+        500,
+      );
+    }
+
+    // Crear el intento si todavía no existe.
+    if (!intentoExistente) {
+      const { error: crearIntentoError } =
+        await ctx.supabase
+          .from("intentos_leccion")
+          .insert({
+            id: intentoId,
+            usuario_id: usuario.id,
+            leccion_id: leccionId,
+          });
+
+      if (crearIntentoError) {
+        console.error(
+          "Error al crear el intento:",
+          crearIntentoError,
+        );
+
+        return responder(
+          { error: "No se pudo crear el intento de la lección." },
+          500,
+        );
+      }
+    }
+
+    // Guardar o actualizar la respuesta seleccionada.
+    const { error: guardarRespuestaError } =
+      await ctx.supabase
+        .from("respuestas_intento")
+        .upsert(
+          {
+            intento_id: intentoId,
+            pregunta_id: preguntaId,
+            opcion_seleccionada_id: opcionId,
+            correcta,
+          },
+          {
+            onConflict: "intento_id,pregunta_id",
+          },
+        );
+
+    if (guardarRespuestaError) {
+      console.error(
+        "Error al guardar la respuesta:",
+        guardarRespuestaError,
+      );
+
+      return responder(
+        { error: "No se pudo guardar la respuesta." },
+        500,
+      );
+    }
+
+    // Devolver el resultado con los encabezados CORS.
+    return responder({
+      correcta,
+      explicacion: pregunta.explicacion,
+      intentoId,
+    });
+  } catch (error) {
+    console.error("Error en verificar-respuesta:", error);
+
+    return responder(
+      { error: "Ocurrió un error al verificar la respuesta." },
+      500,
+    );
+  }
+});

@@ -288,7 +288,7 @@ export async function obtenerActividad(id) {
     id: pregunta.id,
     leccionId: pregunta.leccion_id,
     pregunta: pregunta.enunciado,
-    explicacion: pregunta.explicacion,
+    explicacion: pregunta.explicacion,  
     opciones: opciones.map(opcion => ({
       id: opcion.id,
       texto: opcion.texto

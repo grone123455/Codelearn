@@ -1,4 +1,4 @@
-```vue
+
 <template>
   <section class="pagina">
     <!-- CARGANDO -->
@@ -32,20 +32,56 @@
       </button>
     </div>
 
-    <div v-else class="resultado">
+    <!-- SIN RESULTADOS -->
+    <div
+      v-else-if="!leccionId"
+      class="estado-pagina"
+    >
+      <h1>Todavía no hay resultados</h1>
+
+      <p>
+        Primero tenés que realizar las actividades de una lección
+        para poder consultar tus resultados.
+      </p>
+
+      <button
+        class="principal"
+        @click="volverAlCurso"
+      >
+        Volver al curso
+      </button>
+    </div>
+
+    <!-- RESULTADOS -->
+    <div
+      v-else
+      class="resultado"
+    >
       <span class="etiqueta">
         RESULTADOS
       </span>
 
       <div
         class="icono"
-        :class="aprobado ? 'aprobado' : 'no-aprobado'"
+        :class="
+          !completa
+            ? 'incompleta'
+            : aprobado
+              ? 'aprobado'
+              : 'no-aprobado'
+        "
       >
-        {{ aprobado ? "✓" : "!" }}
+        {{ !completa ? "…" : aprobado ? "✓" : "!" }}
       </div>
 
       <h1>
-        {{ aprobado ? "¡Lección aprobada!" : "Lección no aprobada" }}
+        {{
+          !completa
+            ? "Lección incompleta"
+            : aprobado
+              ? "¡Lección aprobada!"
+              : "Lección no aprobada"
+        }}
       </h1>
 
       <p class="mensaje">
@@ -84,10 +120,15 @@
         </div>
       </div>
 
+      <div class="resumen-respondidas">
+        Actividades respondidas:
+        <strong>{{ respondidas }} de {{ total }}</strong>
+      </div>
+
       <div class="porcentaje">
         <div class="porcentaje-info">
           <span>
-            Porcentaje
+            Porcentaje de respuestas correctas
           </span>
 
           <strong>
@@ -109,8 +150,8 @@
         </strong>
 
         <p>
-          Necesitás responder correctamente al menos
-          2 de las 3 actividades para aprobar la lección.
+          Necesitás responder las 3 actividades y tener al menos
+          2 respuestas correctas para aprobar la lección.
         </p>
       </div>
 
@@ -150,40 +191,91 @@ const actividades = ref([])
 const cargando = ref(true)
 const error = ref(false)
 
-const resultados = JSON.parse(
-  sessionStorage.getItem(
-    "codelearn_resultados"
-  ) || "[]"
-)
+// =====================================
+// RESULTADOS GUARDADOS
+// =====================================
 
-const ultimoResultado =
-  resultados[resultados.length - 1]
+const resultados = ref([])
 
-const leccionId = ultimoResultado
-  ? ultimoResultado.leccionId
-  : "leccion-js-1"
+function leerResultados() {
+  try {
+    const datos = JSON.parse(
+      sessionStorage.getItem("codelearn_resultados") || "[]"
+    )
 
-const resultadosLeccion =
-  resultados.filter(
-    resultado =>
-      resultado.leccionId ===
-      leccionId
+    resultados.value = Array.isArray(datos) ? datos : []
+  } catch {
+    resultados.value = []
+  }
+}
+
+const ultimoResultado = computed(() => {
+  return resultados.value.length > 0
+    ? resultados.value[resultados.value.length - 1]
+    : null
+})
+
+const leccionId = computed(() => {
+  return ultimoResultado.value?.leccionId || null
+})
+
+// =====================================
+// RESULTADOS DE LA LECCIÓN
+// =====================================
+
+const resultadosLeccion = computed(() => {
+  const resultadosFiltrados = resultados.value.filter(
+    resultado => resultado.leccionId === leccionId.value
   )
 
-const correctas =
-  resultadosLeccion.filter(
-    resultado =>
-      resultado.correcta === true
-  ).length
+  // Si una actividad tiene varios registros, se conserva
+  // solamente el último para evitar contarla más de una vez.
+  const resultadosUnicos = new Map()
 
-const incorrectas =
-  resultadosLeccion.filter(
-    resultado =>
-      resultado.correcta === false
-  ).length
+  for (const resultado of resultadosFiltrados) {
+    if (resultado.actividadId) {
+      resultadosUnicos.set(
+        resultado.actividadId,
+        resultado
+      )
+    }
+  }
+
+  return [...resultadosUnicos.values()]
+})
+
+const resultadosValidos = computed(() => {
+  const idsActividades = new Set(
+    actividades.value.map(actividad => actividad.id)
+  )
+
+  return resultadosLeccion.value.filter(
+    resultado => idsActividades.has(resultado.actividadId)
+  )
+})
 
 const total = computed(() => {
   return actividades.value.length
+})
+
+const respondidas = computed(() => {
+  return resultadosValidos.value.length
+})
+
+const correctas = computed(() => {
+  return resultadosValidos.value.filter(
+    resultado => resultado.correcta === true
+  ).length
+})
+
+const incorrectas = computed(() => {
+  return resultadosValidos.value.filter(
+    resultado => resultado.correcta === false
+  ).length
+})
+
+const completa = computed(() => {
+  return total.value > 0 && respondidas.value === total.value
 })
 
 const porcentaje = computed(() => {
@@ -192,20 +284,24 @@ const porcentaje = computed(() => {
   }
 
   return Math.round(
-    (correctas / total.value) * 100
+    (correctas.value / total.value) * 100
   )
 })
 
 const aprobado = computed(() => {
-  return correctas >= 2
+  return completa.value && correctas.value >= 2
 })
 
 const mensaje = computed(() => {
-  if (aprobado.value) {
-    return "Completaste correctamente la mayoría de las actividades. Podés continuar con la siguiente lección."
+  if (!completa.value) {
+    return `Todavía no completaste todas las actividades. Respondidas: ${respondidas.value} de ${total.value}. Terminá las que faltan para conocer el resultado final.`
   }
 
-  return "Necesitás al menos 2 respuestas correctas para aprobar. Podés volver a intentarlo."
+  if (aprobado.value) {
+    return "Completaste las actividades y conseguiste al menos 2 respuestas correctas. Podés continuar con la siguiente lección."
+  }
+
+  return "Completaste las actividades, pero necesitás al menos 2 respuestas correctas para aprobar. Podés volver a intentarlo."
 })
 
 // =====================================
@@ -217,14 +313,30 @@ async function cargarResultados() {
     cargando.value = true
     error.value = false
 
+    leerResultados()
+
+    leccion.value = null
+    actividades.value = []
+
+    if (!leccionId.value) {
+      return
+    }
+
     leccion.value = await obtenerLeccion(
-      leccionId
+      leccionId.value
     )
 
-    actividades.value =
-      await obtenerActividadesPorLeccion(
-        leccionId
-      )
+    if (!leccion.value) {
+      throw new Error("No se encontró la lección.")
+    }
+
+    actividades.value = await obtenerActividadesPorLeccion(
+      leccionId.value
+    )
+
+    if (!Array.isArray(actividades.value)) {
+      actividades.value = []
+    }
   } catch (e) {
     console.error(
       "Error al cargar los resultados:",
@@ -241,33 +353,26 @@ onMounted(() => {
   cargarResultados()
 })
 
-function volverAIntentar() {
-  const resultadosActuales =
-    JSON.parse(
-      sessionStorage.getItem(
-        "codelearn_resultados"
-      ) || "[]"
-    )
+// =====================================
+// VOLVER A INTENTAR
+// =====================================
 
-  const resultadosOtros =
-    resultadosActuales.filter(
-      resultado =>
-        resultado.leccionId !==
-        leccionId
-    )
+function volverAIntentar() {
+  const resultadosActuales = JSON.parse(
+    sessionStorage.getItem("codelearn_resultados") || "[]"
+  )
+
+  const resultadosOtros = resultadosActuales.filter(
+    resultado => resultado.leccionId !== leccionId.value
+  )
 
   sessionStorage.setItem(
     "codelearn_resultados",
-    JSON.stringify(
-      resultadosOtros
-    )
+    JSON.stringify(resultadosOtros)
   )
 
   if (actividades.value.length === 0) {
-    router.push(
-      "/cursos/javascript"
-    )
-
+    volverAlCurso()
     return
   }
 
@@ -276,18 +381,23 @@ function volverAIntentar() {
   )
 }
 
+// =====================================
+// NAVEGACIÓN
+// =====================================
+
 function volverAUnidad() {
   if (!leccion.value) {
-    router.push(
-      "/cursos/javascript"
-    )
-
+    volverAlCurso()
     return
   }
 
   router.push(
     `/cursos/javascript/unidad/${leccion.value.unidadId}`
   )
+}
+
+function volverAlCurso() {
+  router.push("/cursos/javascript")
 }
 </script>
 
@@ -336,6 +446,12 @@ function volverAUnidad() {
   color: #ef4444;
 }
 
+.icono.incompleta {
+  background: rgba(234, 179, 8, 0.12);
+  border: 2px solid #eab308;
+  color: #eab308;
+}
+
 h1 {
   margin: 0;
   color: #f8fafc;
@@ -354,7 +470,7 @@ h1 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 15px;
-  margin-bottom: 25px;
+  margin-bottom: 18px;
 }
 
 .estadistica {
@@ -394,6 +510,16 @@ h1 {
   color: #ef4444;
 }
 
+.resumen-respondidas {
+  margin-bottom: 20px;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.resumen-respondidas strong {
+  color: #f8fafc;
+}
+
 .porcentaje {
   padding: 22px;
   text-align: left;
@@ -406,6 +532,7 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   margin-bottom: 12px;
 }
 
@@ -533,6 +660,10 @@ h1 {
 
   .estadistica .nombre {
     font-size: 0.7rem;
+  }
+
+  .porcentaje-info {
+    align-items: flex-start;
   }
 
   .acciones {

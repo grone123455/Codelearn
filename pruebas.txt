@@ -1,0 +1,40 @@
+# CodeLearn — Registro de pruebas de la Etapa 3
+
+## 1. Objetivo
+
+Registrar las pruebas realizadas para verificar la conexión con Supabase, la carga del contenido, la seguridad de los datos y el funcionamiento de las actividades.
+
+## 2. Pruebas realizadas
+
+| N.º | Prueba | Resultado |
+|---|---|---|
+| 1 | Modificar el título de una lección en Supabase y comprobar el cambio en CodeLearn. | Aprobada |
+| 2 | Restaurar el título original de la lección. | Aprobada |
+| 3 | Intentar acceder a una lección con un ID inexistente. | Aprobada: aparece un mensaje indicando que la lección no existe. |
+| 4 | Intentar verificar una respuesta sin conexión a Internet. | Aprobada: el error de conexión no se registra como respuesta incorrecta. |
+| 5 | Comprobar que los roles `anon` y `authenticated` no tengan permisos directos de inserción, modificación ni eliminación sobre las tablas de contenido. | Aprobada |
+| 6 | Comprobar que los roles `anon` y `authenticated` no tengan permiso directo de lectura sobre la tabla `soluciones`. | Aprobada |
+| 7 | Completar una lección y comprobar los resultados. | Aprobada: se muestran las respuestas correctas, incorrectas y el porcentaje. |
+| 8 | Comprobar el orden de las preguntas en Supabase. | Aprobada |
+| 9 | Comprobar que las actividades aparezcan en el orden establecido. | Aprobada |
+| 10 | Comprobar que cada lección muestre sus propias actividades. | Aprobada |
+| 11 | Comprobar que las unidades 2, 3, 4 y 5 permanezcan bloqueadas. | Aprobada |
+| 12 | Actualizar el título en Supabase, recargar CodeLearn y comprobar que el cambio persista. | Aprobada |
+| 13 | Abrir CodeLearn desde un segundo navegador y comprobar el acceso a las lecciones y actividades. | Aprobada |
+| 14 | Error al cargar los cursos | Al perder la conexión, se muestra el mensaje de error y el botón para reintentar. | Aprobada |
+| 15 | Unidad publicada sin lecciones | Se muestra el mensaje "No hay lecciones disponibles" cuando una unidad publicada no tiene lecciones. | Aprobada |
+
+
+## 3. Pruebas pendientes
+
+- Comprobar el comportamiento cuando no se puede cargar el listado de cursos.
+- Comprobar el comportamiento cuando una unidad publicada no tiene lecciones.
+- Comprobar el comportamiento cuando una lección no tiene actividades.
+- Comprobar que un error al cargar las actividades de una unidad permita reintentar la operación.
+- Comprobar que un error al verificar una respuesta no se registre como respuesta incorrecta.
+
+## 4. Conclusión
+
+Las pruebas realizadas confirman el funcionamiento de la conexión con Supabase, la carga y actualización del contenido, el orden y la separación de las actividades, la protección de las soluciones, el manejo de errores y la visualización de resultados.
+
+Las pruebas pendientes se centran en verificar los estados de error y los contenidos vacíos contemplados en la Etapa 3. El DER se realizará al finalizar las funcionalidades, según la planificación del proyecto.
