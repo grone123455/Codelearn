@@ -237,7 +237,7 @@ async function cargarResultados() {
 function volverAUnidad() {
   if (!leccion.value) return
 
-  router.push(`/unidad/${leccion.value.unidadId || leccion.value.unidad_id}`)
+  router.push(`/cursos/javascript/unidad/${leccion.value.unidadId || leccion.value.unidad_id}`)
 }
 
 function volverAIntentar() {
