@@ -13,25 +13,13 @@
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m3.5 10 8.5-7 8.5 7v9.5a1 1 0 0 1-1 1h-5v-7h-5v7h-5a1 1 0 0 1-1-1z" /></svg>
         <span>Inicio</span>
       </RouterLink>
-      <RouterLink to="/cursos" class="app-nav__link" exact-active-class="is-active">
+      <RouterLink
+        to="/cursos"
+        class="app-nav__link"
+        :class="{ 'is-active': ['cursos', 'javascript', 'unidad', 'leccion', 'actividad'].includes(route.name) }"
+      >
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21z" /><path d="M4 5.5v13A2.5 2.5 0 0 1 6.5 16H20M8 7h8M8 10h6" /></svg>
         <span>Cursos</span>
-      </RouterLink>
-      <RouterLink
-        to="/cursos/javascript"
-        class="app-nav__link"
-        :class="{ 'is-active': ['javascript', 'unidad', 'leccion', 'actividad'].includes(route.name) }"
-      >
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 4h14v16H5zM9 8h6M9 12h6M9 16h3" /></svg>
-        <span>Mi recorrido</span>
-      </RouterLink>
-      <RouterLink to="/resultados" class="app-nav__link" exact-active-class="is-active">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-7" /></svg>
-        <span>Resultados</span>
-      </RouterLink>
-      <RouterLink to="/perfil" class="app-nav__link" exact-active-class="is-active">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
-        <span>Mi perfil</span>
       </RouterLink>
     </nav>
 
@@ -40,7 +28,7 @@
         <span class="sidebar-note__mark" aria-hidden="true">&lt;/&gt;</span>
         <p>Aprendé haciendo.<br /><strong>Avanzá a tu ritmo.</strong></p>
       </div>
-      <RouterLink to="/perfil" class="sidebar-profile">
+      <RouterLink to="/perfil" class="sidebar-profile" exact-active-class="is-active">
         <span class="sidebar-profile__avatar" aria-hidden="true">CL</span>
         <span class="sidebar-profile__copy"><strong>Mi espacio</strong><small>Cuenta y progreso</small></span>
         <span class="sidebar-profile__arrow" aria-hidden="true">→</span>

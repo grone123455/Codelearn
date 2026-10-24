@@ -9,10 +9,6 @@
           <span class="app-topbar__separator" aria-hidden="true">/</span>
           <strong>{{ pageTitle }}</strong>
         </div>
-        <RouterLink to="/perfil" class="app-topbar__profile">
-          <span class="app-topbar__avatar" aria-hidden="true">CL</span>
-          <span>Mi perfil</span>
-        </RouterLink>
       </header>
 
       <main class="app-route-content">
