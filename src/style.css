@@ -318,6 +318,60 @@ body .perfil__mensaje {
   color: var(--color-accent);
 }
 
+body .acceso .acceso__tarjeta {
+  border: 1px solid rgba(137, 163, 190, 0.18);
+  border-radius: 24px;
+  background: linear-gradient(150deg, rgba(20, 35, 56, 0.98), rgba(10, 22, 37, 0.98));
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.32), 0 0 42px rgba(85, 242, 160, 0.06);
+}
+
+body .acceso .acceso__logo {
+  border: 2px solid rgba(133, 255, 192, 0.74);
+  border-radius: 50%;
+  box-shadow: 0 0 26px rgba(85, 242, 160, 0.14);
+}
+
+body .acceso.acceso h1 {
+  color: var(--color-text);
+  font-family: "Space Grotesk", "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.035em;
+}
+
+body .acceso .acceso__descripcion {
+  color: var(--color-muted);
+}
+
+body .acceso .acceso__boton {
+  min-height: 48px;
+  border: 1px solid rgba(137, 163, 190, 0.22);
+  border-radius: 12px;
+  background: rgba(17, 31, 49, 0.72);
+  color: var(--color-text);
+  transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+}
+
+body .acceso .acceso__boton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(85, 242, 160, 0.56);
+  background: rgba(85, 242, 160, 0.08);
+  box-shadow: 0 0 20px rgba(85, 242, 160, 0.08);
+}
+
+body .acceso .acceso__boton.acceso__boton--principal,
+body .acceso .acceso__boton.acceso__boton--principal:hover:not(:disabled) {
+  border-color: rgba(133, 255, 192, 0.34);
+  background: linear-gradient(135deg, #45e999, #79f5b2);
+  color: #062016;
+  box-shadow: 0 8px 22px rgba(50, 220, 136, 0.15);
+}
+
+@media (max-width: 600px) {
+  body .acceso .acceso__tarjeta {
+    padding: 26px 22px;
+    border-radius: 20px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
