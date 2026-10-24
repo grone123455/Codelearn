@@ -1,186 +1,45 @@
 <template>
-  <header class="navbar">
-    <RouterLink to="/" class="logo">
-      <div class="logo-mascota">
-        <img
-          :src="logo"
-          alt="Logo de CodeLearn"
-        />
-      </div>
-
-      <div class="logo-text">
-        <span class="nombre">
-          CodeLearn
-        </span>
-
-        <span class="subtitulo">
-          Aprendé. Programá. Creá.
-        </span>
-      </div>
+  <aside class="app-sidebar" aria-label="Navegación del espacio de aprendizaje">
+    <RouterLink to="/" class="app-brand" aria-label="CodeLearn, ir al inicio">
+      <span class="app-brand__mark">
+        <img :src="logo" alt="" />
+      </span>
+      <span class="app-brand__name">Code<span>Learn</span></span>
     </RouterLink>
 
-    <nav>
-      <RouterLink to="/">
-        Inicio
+    <p class="app-sidebar__label">Aprendizaje</p>
+    <nav class="app-nav" aria-label="Navegación principal">
+      <RouterLink to="/" class="app-nav__link" exact-active-class="is-active">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m3.5 10 8.5-7 8.5 7v9.5a1 1 0 0 1-1 1h-5v-7h-5v7h-5a1 1 0 0 1-1-1z" /></svg>
+        <span>Inicio</span>
       </RouterLink>
-
-      <RouterLink to="/cursos">
-        Cursos
+      <RouterLink
+        to="/cursos"
+        class="app-nav__link"
+        :class="{ 'is-active': ['cursos', 'javascript', 'unidad', 'leccion', 'actividad'].includes(route.name) }"
+      >
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21z" /><path d="M4 5.5v13A2.5 2.5 0 0 1 6.5 16H20M8 7h8M8 10h6" /></svg>
+        <span>Cursos</span>
       </RouterLink>
     </nav>
-  </header>
+
+    <div class="app-sidebar__footer">
+      <div class="sidebar-note">
+        <span class="sidebar-note__mark" aria-hidden="true">&lt;/&gt;</span>
+        <p>Aprendé haciendo.<br /><strong>Avanzá a tu ritmo.</strong></p>
+      </div>
+      <RouterLink to="/perfil" class="sidebar-profile" exact-active-class="is-active">
+        <span class="sidebar-profile__avatar" aria-hidden="true">CL</span>
+        <span class="sidebar-profile__copy"><strong>Mi espacio</strong><small>Cuenta y progreso</small></span>
+        <span class="sidebar-profile__arrow" aria-hidden="true">→</span>
+      </RouterLink>
+    </div>
+  </aside>
 </template>
 
 <script setup>
+import { useRoute } from "vue-router"
 import logo from "../assets/images/logo-codelearn.png"
+
+const route = useRoute()
 </script>
-
-<style scoped>
-.navbar {
-  min-height: 76px;
-
-  padding: 0 7%;
-
-  display: flex;
-
-  align-items: center;
-  justify-content: space-between;
-
-  background: #0f172a;
-
-  border-bottom: 1px solid #1e293b;
-}
-
-.logo {
-  display: flex;
-
-  align-items: center;
-
-  gap: 12px;
-
-  color: #f8fafc;
-
-  text-decoration: none;
-}
-
-.logo-mascota {
-  width: 48px;
-  height: 48px;
-
-  display: flex;
-
-  align-items: center;
-  justify-content: center;
-
-  background: #1e293b;
-
-  border: 1px solid #22c55e;
-
-  border-radius: 12px;
-
-  overflow: hidden;
-}
-
-.logo-mascota img {
-  width: 100%;
-  height: 100%;
-
-  object-fit: contain;
-}
-
-.logo-text {
-  display: flex;
-
-  flex-direction: column;
-}
-
-.nombre {
-  color: #f8fafc;
-
-  font-size: 1.25rem;
-  font-weight: 800;
-
-  line-height: 1.1;
-}
-
-.subtitulo {
-  margin-top: 3px;
-
-  color: #64748b;
-
-  font-size: 0.65rem;
-
-  letter-spacing: 0.5px;
-}
-
-nav {
-  display: flex;
-
-  align-items: center;
-
-  gap: 30px;
-}
-
-nav a {
-  position: relative;
-
-  padding: 8px 0;
-
-  color: #94a3b8;
-
-  text-decoration: none;
-
-  font-size: 0.95rem;
-  font-weight: 600;
-
-  transition: 0.2s;
-}
-
-nav a:hover,
-nav a.router-link-active {
-  color: #22c55e;
-}
-
-nav a.router-link-active::after {
-  content: "";
-
-  position: absolute;
-
-  left: 0;
-  right: 0;
-  bottom: 0;
-
-  height: 2px;
-
-  background: #22c55e;
-
-  border-radius: 5px;
-}
-
-@media (max-width: 600px) {
-  .navbar {
-    padding: 0 5%;
-  }
-
-  .subtitulo {
-    display: none;
-  }
-
-  nav {
-    gap: 16px;
-  }
-
-  nav a {
-    font-size: 0.85rem;
-  }
-
-  .logo-mascota {
-    width: 42px;
-    height: 42px;
-  }
-
-  .nombre {
-    font-size: 1.1rem;
-  }
-}
-</style>
