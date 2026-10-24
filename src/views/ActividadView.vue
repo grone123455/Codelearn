@@ -1,19 +1,14 @@
+
 <template>
   <section class="pagina">
     <!-- CARGANDO -->
-    <div
-      v-if="cargando"
-      class="estado-pagina"
-    >
+    <div v-if="cargando" class="estado-pagina">
       <h1>Cargando actividad...</h1>
       <p>Estamos obteniendo la actividad desde la base de datos.</p>
     </div>
 
     <!-- ERROR -->
-    <div
-      v-else-if="error"
-      class="estado-pagina"
-    >
+    <div v-else-if="error" class="estado-pagina">
       <h1>No se pudo cargar la actividad</h1>
       <p>Ocurrió un error al obtener la actividad.</p>
       <button class="siguiente" @click="cargarActividad">
@@ -22,10 +17,7 @@
     </div>
 
     <!-- ACTIVIDAD -->
-    <div
-      v-else-if="actividad"
-      class="contenido"
-    >
+    <div v-else-if="actividad" class="contenido">
       <div class="navegacion">
         <button class="volver" @click="volverALeccion">
           ← Volver a la lección
@@ -49,7 +41,7 @@
 
       <div class="opciones">
         <button
-          v-for="opcion in actividad.opciones"
+          v-for="opcion in opcionesMezcladas"
           :key="opcion.id"
           class="opcion"
           :class="claseOpcion(opcion.id)"
@@ -67,10 +59,7 @@
       </div>
 
       <!-- ERROR DE VERIFICACIÓN -->
-      <div
-        v-if="errorVerificacion"
-        class="feedback error-feedback"
-      >
+      <div v-if="errorVerificacion" class="feedback error-feedback">
         <div class="feedback-icono">!</div>
         <div>
           <h2>No se pudo verificar la respuesta</h2>
@@ -110,11 +99,7 @@
           :disabled="!respuestaSeleccionada || verificando"
           @click="confirmarRespuesta"
         >
-          {{
-            verificando
-              ? "Verificando..."
-              : "Confirmar respuesta"
-          }}
+          {{ verificando ? "Verificando..." : "Confirmar respuesta" }}
         </button>
 
         <!-- SIGUIENTE -->
@@ -142,10 +127,7 @@
     </div>
 
     <!-- NO ENCONTRADA -->
-    <div
-      v-else
-      class="error"
-    >
+    <div v-else class="error">
       <h1>Actividad no encontrada</h1>
       <p>
         La actividad que estás buscando no existe o no está disponible.
@@ -178,6 +160,7 @@ const router = useRouter()
 
 const actividad = ref(null)
 const actividadesLeccion = ref([])
+const opcionesMezcladas = ref([])
 const cargando = ref(true)
 const error = ref(false)
 const verificando = ref(false)
@@ -188,21 +171,46 @@ const respuestaCorrecta = ref(false)
 const intentoId = ref(null)
 
 // =====================================
+// MEZCLAR OPCIONES ALEATORIAMENTE
+// =====================================
+function mezclarOpciones(opciones) {
+  const resultado = [...opciones]
+
+  // Algoritmo Fisher-Yates para mezclar las opciones.
+  for (let i = resultado.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+
+    const temporal = resultado[i]
+    resultado[i] = resultado[j]
+    resultado[j] = temporal
+  }
+
+  return resultado
+}
+
+// =====================================
 // CARGAR ACTIVIDAD
 // =====================================
 async function cargarActividad() {
   try {
     cargando.value = true
     error.value = false
+    actividad.value = null
+    opcionesMezcladas.value = []
     reiniciarActividad()
 
     const resultado = await obtenerActividad(route.params.id)
+
     actividad.value = resultado
 
     if (!resultado) {
       actividadesLeccion.value = []
       return
     }
+
+    opcionesMezcladas.value = mezclarOpciones(
+      resultado.opciones || []
+    )
 
     actividadesLeccion.value =
       await obtenerActividadesPorLeccion(resultado.leccionId)
@@ -227,6 +235,7 @@ async function cargarActividad() {
     console.error("Error al cargar la actividad:", e)
     error.value = true
     actividad.value = null
+    opcionesMezcladas.value = []
     actividadesLeccion.value = []
   } finally {
     cargando.value = false
