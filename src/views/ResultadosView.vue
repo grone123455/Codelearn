@@ -1,139 +1,77 @@
-
 <template>
-  <section class="pagina">
-    <!-- CARGANDO -->
-    <div
-      v-if="cargando"
-      class="estado-pagina"
-    >
+  <main class="pagina">
+    <section v-if="cargando" class="estado-pagina">
       <h1>Cargando resultados...</h1>
+      <p>Estamos recuperando tus resultados.</p>
+    </section>
 
-      <p>
-        Estamos obteniendo el resultado de la lección.
-      </p>
-    </div>
-
-    <!-- ERROR -->
-    <div
-      v-else-if="error"
-      class="estado-pagina"
-    >
+    <section v-else-if="error" class="estado-pagina">
       <h1>No se pudieron cargar los resultados</h1>
-
-      <p>
-        Ocurrió un error al obtener la información.
-      </p>
-
-      <button
-        class="principal"
-        @click="cargarResultados"
-      >
+      <p>Ocurrió un problema al recuperar tu intento. Volvé a intentarlo.</p>
+      <button class="principal" @click="cargarResultados">
         Reintentar
       </button>
-    </div>
+    </section>
 
-    <!-- SIN RESULTADOS -->
-    <div
-      v-else-if="!leccionId"
-      class="estado-pagina"
-    >
-      <h1>Todavía no hay resultados</h1>
-
-      <p>
-        Primero tenés que realizar las actividades de una lección
-        para poder consultar tus resultados.
-      </p>
-
-      <button
-        class="principal"
-        @click="volverAlCurso"
-      >
-        Volver al curso
+    <section v-else-if="!leccionId" class="estado-pagina">
+      <h1>No hay resultados para mostrar</h1>
+      <p>Completá una actividad para consultar tus resultados.</p>
+      <button class="principal" @click="volverACursos">
+        Volver a cursos
       </button>
-    </div>
+    </section>
 
-    <!-- RESULTADOS -->
-    <div
-      v-else
-      class="resultado"
-    >
-      <span class="etiqueta">
-        RESULTADOS
-      </span>
+    <section v-else class="resultado">
+      <span class="etiqueta">RESULTADOS DE LA LECCIÓN</span>
 
       <div
         class="icono"
-        :class="
-          !completa
-            ? 'incompleta'
-            : aprobado
-              ? 'aprobado'
-              : 'no-aprobado'
-        "
+        :class="{
+          aprobado: aprobado,
+          'no-aprobado': completa && !aprobado,
+          incompleta: !completa
+        }"
       >
-        {{ !completa ? "…" : aprobado ? "✓" : "!" }}
+        {{ aprobado ? '✓' : completa ? '✕' : '…' }}
       </div>
 
       <h1>
         {{
-          !completa
-            ? "Lección incompleta"
-            : aprobado
-              ? "¡Lección aprobada!"
-              : "Lección no aprobada"
+          aprobado
+            ? '¡Lección aprobada!'
+            : completa
+              ? 'Lección no aprobada'
+              : 'Lección incompleta'
         }}
       </h1>
 
-      <p class="mensaje">
-        {{ mensaje }}
-      </p>
+      <p class="mensaje">{{ mensaje }}</p>
 
       <div class="estadisticas">
         <div class="estadistica">
-          <span class="numero">
-            {{ total }}
-          </span>
-
-          <span class="nombre">
-            Total
-          </span>
+          <span class="numero">{{ total }}</span>
+          <span class="nombre">Actividades</span>
         </div>
 
         <div class="estadistica correcta">
-          <span class="numero">
-            {{ correctas }}
-          </span>
-
-          <span class="nombre">
-            Correctas
-          </span>
+          <span class="numero">{{ correctas }}</span>
+          <span class="nombre">Correctas</span>
         </div>
 
         <div class="estadistica incorrecta">
-          <span class="numero">
-            {{ incorrectas }}
-          </span>
-
-          <span class="nombre">
-            Incorrectas
-          </span>
+          <span class="numero">{{ incorrectas }}</span>
+          <span class="nombre">Incorrectas</span>
         </div>
       </div>
 
-      <div class="resumen-respondidas">
-        Actividades respondidas:
-        <strong>{{ respondidas }} de {{ total }}</strong>
-      </div>
+      <p class="resumen-respondidas">
+        Respondidas: <strong>{{ respondidas }} de {{ total }}</strong>
+      </p>
 
       <div class="porcentaje">
         <div class="porcentaje-info">
-          <span>
-            Porcentaje de respuestas correctas
-          </span>
-
-          <strong>
-            {{ porcentaje }}%
-          </strong>
+          <span>Tu resultado</span>
+          <strong>{{ porcentaje }}%</strong>
         </div>
 
         <div class="barra">
@@ -145,260 +83,176 @@
       </div>
 
       <div class="regla">
-        <strong>
-          Regla de aprobación
-        </strong>
-
+        <strong>¿Cómo se aprueba?</strong>
         <p>
-          Necesitás responder las 3 actividades y tener al menos
-          2 respuestas correctas para aprobar la lección.
+          Necesitás responder correctamente al menos 2 de cada 3 actividades
+          para aprobar la lección.
         </p>
       </div>
 
       <div class="acciones">
-        <button
-          class="secundario"
-          @click="volverAUnidad"
-        >
+        <button class="secundario" @click="volverAUnidad">
           Volver a la unidad
         </button>
 
-        <button
-          class="principal"
-          @click="volverAIntentar"
-        >
+        <button class="principal" @click="volverAIntentar">
           Volver a intentar
         </button>
       </div>
-    </div>
-  </section>
+    </section>
+  </main>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue"
-import { useRouter } from "vue-router"
-
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   obtenerActividadesPorLeccion,
-  obtenerLeccion
-} from "../services/datos.js"
+  obtenerLeccion,
+  obtenerIntentosPorLeccion,
+  obtenerUltimoIntento
+} from '../services/datos'
 
 const router = useRouter()
 
 const leccion = ref(null)
 const actividades = ref([])
+const respuestasIntento = ref([])
+const intentoActual = ref(null)
 
 const cargando = ref(true)
 const error = ref(false)
-
-// =====================================
-// RESULTADOS GUARDADOS
-// =====================================
-
-const resultados = ref([])
-
-function leerResultados() {
-  try {
-    const datos = JSON.parse(
-      sessionStorage.getItem("codelearn_resultados") || "[]"
-    )
-
-    resultados.value = Array.isArray(datos) ? datos : []
-  } catch {
-    resultados.value = []
-  }
-}
-
-const ultimoResultado = computed(() => {
-  return resultados.value.length > 0
-    ? resultados.value[resultados.value.length - 1]
-    : null
-})
-
-const leccionId = computed(() => {
-  return ultimoResultado.value?.leccionId || null
-})
-
-// =====================================
-// RESULTADOS DE LA LECCIÓN
-// =====================================
-
-const resultadosLeccion = computed(() => {
-  const resultadosFiltrados = resultados.value.filter(
-    resultado => resultado.leccionId === leccionId.value
-  )
-
-  // Si una actividad tiene varios registros, se conserva
-  // solamente el último para evitar contarla más de una vez.
-  const resultadosUnicos = new Map()
-
-  for (const resultado of resultadosFiltrados) {
-    if (resultado.actividadId) {
-      resultadosUnicos.set(
-        resultado.actividadId,
-        resultado
-      )
-    }
-  }
-
-  return [...resultadosUnicos.values()]
-})
+const leccionId = ref(null)
 
 const resultadosValidos = computed(() => {
-  const idsActividades = new Set(
-    actividades.value.map(actividad => actividad.id)
+  const preguntasDeLaLeccion = new Set(
+    actividades.value.map((actividad) => actividad.id)
   )
 
-  return resultadosLeccion.value.filter(
-    resultado => idsActividades.has(resultado.actividadId)
+  return respuestasIntento.value.filter((respuesta) =>
+    preguntasDeLaLeccion.has(respuesta.pregunta_id)
   )
 })
 
-const total = computed(() => {
-  return actividades.value.length
-})
+const total = computed(() => actividades.value.length)
 
-const respondidas = computed(() => {
-  return resultadosValidos.value.length
-})
+const respondidas = computed(() => resultadosValidos.value.length)
 
-const correctas = computed(() => {
-  return resultadosValidos.value.filter(
-    resultado => resultado.correcta === true
-  ).length
-})
+const correctas = computed(
+  () => resultadosValidos.value.filter((respuesta) => respuesta.correcta).length
+)
 
-const incorrectas = computed(() => {
-  return resultadosValidos.value.filter(
-    resultado => resultado.correcta === false
-  ).length
-})
+const incorrectas = computed(() => respondidas.value - correctas.value)
 
-const completa = computed(() => {
-  return total.value > 0 && respondidas.value === total.value
-})
+const completa = computed(
+  () => total.value > 0 && respondidas.value >= total.value
+)
 
 const porcentaje = computed(() => {
-  if (total.value === 0) {
-    return 0
-  }
+  if (respondidas.value === 0) return 0
 
-  return Math.round(
-    (correctas.value / total.value) * 100
-  )
+  return Math.round((correctas.value / total.value) * 100)
 })
 
 const aprobado = computed(() => {
-  return completa.value && correctas.value >= 2
+  if (!completa.value || total.value === 0) return false
+
+  return correctas.value >= Math.ceil((total.value * 2) / 3)
 })
 
 const mensaje = computed(() => {
   if (!completa.value) {
-    return `Todavía no completaste todas las actividades. Respondidas: ${respondidas.value} de ${total.value}. Terminá las que faltan para conocer el resultado final.`
+    return 'Todavía no respondiste todas las actividades. Podés continuar para completar la lección.'
   }
 
   if (aprobado.value) {
-    return "Completaste las actividades y conseguiste al menos 2 respuestas correctas. Podés continuar con la siguiente lección."
+    return '¡Buen trabajo! Alcanzaste el puntaje necesario para aprobar esta lección.'
   }
 
-  return "Completaste las actividades, pero necesitás al menos 2 respuestas correctas para aprobar. Podés volver a intentarlo."
+  return 'Todavía no alcanzaste el puntaje necesario. Podés volver a intentarlo para mejorar tu resultado.'
 })
 
-// =====================================
-// CARGAR DATOS
-// =====================================
-
 async function cargarResultados() {
+  cargando.value = true
+  error.value = false
+  leccion.value = null
+  actividades.value = []
+  respuestasIntento.value = []
+  intentoActual.value = null
+  leccionId.value = null
+
   try {
-    cargando.value = true
-    error.value = false
+    let intento = null
 
-    leerResultados()
+    // Primero buscamos el intento que acaba de finalizar.
+    const ultimoIntentoGuardado = sessionStorage.getItem(
+      'codelearn_ultimo_intento'
+    )
 
-    leccion.value = null
-    actividades.value = []
+    if (ultimoIntentoGuardado) {
+      try {
+        const datosGuardados = JSON.parse(ultimoIntentoGuardado)
 
-    if (!leccionId.value) {
+        if (datosGuardados.intentoId && datosGuardados.leccionId) {
+          const intentos = await obtenerIntentosPorLeccion(
+            datosGuardados.leccionId
+          )
+
+          intento =
+            intentos.find(
+              (item) => item.id === datosGuardados.intentoId
+            ) || null
+        }
+      } catch (e) {
+        console.error('No se pudo recuperar el intento reciente:', e)
+      }
+    }
+
+    // Si no encontramos el intento reciente, consultamos el último del usuario.
+    if (!intento) {
+      intento = await obtenerUltimoIntento()
+    }
+
+    if (!intento) {
       return
     }
 
-    leccion.value = await obtenerLeccion(
-      leccionId.value
-    )
+    intentoActual.value = intento
+    leccionId.value = intento.leccion_id
 
-    if (!leccion.value) {
-      throw new Error("No se encontró la lección.")
-    }
+    respuestasIntento.value = intento.respuestas || []
 
-    actividades.value = await obtenerActividadesPorLeccion(
-      leccionId.value
-    )
+    leccion.value = await obtenerLeccion(intento.leccion_id)
 
-    if (!Array.isArray(actividades.value)) {
-      actividades.value = []
-    }
+    actividades.value =
+      (await obtenerActividadesPorLeccion(intento.leccion_id)) || []
   } catch (e) {
-    console.error(
-      "Error al cargar los resultados:",
-      e
-    )
-
+    console.error('Error al cargar los resultados:', e)
     error.value = true
   } finally {
     cargando.value = false
   }
 }
 
-onMounted(() => {
-  cargarResultados()
-})
+function volverAUnidad() {
+  if (!leccion.value) return
 
-// =====================================
-// VOLVER A INTENTAR
-// =====================================
+  router.push(`/unidad/${leccion.value.unidadId || leccion.value.unidad_id}`)
+}
 
 function volverAIntentar() {
-  const resultadosActuales = JSON.parse(
-    sessionStorage.getItem("codelearn_resultados") || "[]"
-  )
+  if (!leccionId.value) return
 
-  const resultadosOtros = resultadosActuales.filter(
-    resultado => resultado.leccionId !== leccionId.value
-  )
-
-  sessionStorage.setItem(
-    "codelearn_resultados",
-    JSON.stringify(resultadosOtros)
-  )
-
-  if (actividades.value.length === 0) {
-    volverAlCurso()
-    return
+  if (actividades.value.length > 0) {
+    router.push(`/actividad/${actividades.value[0].id}`)
   }
-
-  router.push(
-    `/actividad/${actividades.value[0].id}`
-  )
 }
 
-// =====================================
-// NAVEGACIÓN
-// =====================================
-
-function volverAUnidad() {
-  if (!leccion.value) {
-    volverAlCurso()
-    return
-  }
-
-  router.push(
-    `/cursos/javascript/unidad/${leccion.value.unidadId}`
-  )
+function volverACursos() {
+  router.push('/cursos')
 }
 
-function volverAlCurso() {
-  router.push("/cursos/javascript")
-}
+onMounted(cargarResultados)
 </script>
 
 <style scoped>

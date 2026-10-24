@@ -45,7 +45,12 @@ Deno.serve(async (req) => {
       leccionId,
     } = await req.json();
 
-    if (!preguntaId || !opcionId || !intentoId || !leccionId) {
+    if (
+      !preguntaId ||
+      !opcionId ||
+      !intentoId ||
+      !leccionId
+    ) {
       return responder(
         { error: "Faltan datos para verificar la respuesta." },
         400,
@@ -64,7 +69,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Comprobar que la pregunta pertenece a la lección indicada.
+    // Comprobar que la pregunta pertenece a la lección.
     const { data: pregunta, error: preguntaError } =
       await ctx.supabase
         .from("preguntas")
@@ -74,7 +79,10 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
     if (preguntaError || !pregunta) {
-      console.error("Error al consultar la pregunta:", preguntaError);
+      console.error(
+        "Error al consultar la pregunta:",
+        preguntaError,
+      );
 
       return responder(
         { error: "La pregunta no pertenece a esta lección." },
@@ -92,7 +100,10 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
     if (opcionError || !opcion) {
-      console.error("Error al consultar la opción:", opcionError);
+      console.error(
+        "Error al consultar la opción:",
+        opcionError,
+      );
 
       return responder(
         { error: "La opción seleccionada no es válida." },
@@ -100,7 +111,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Consultar la solución solamente desde el servidor.
+    // Consultar la solución únicamente desde el servidor.
     const { data: solucion, error: solucionError } =
       await ctx.supabaseAdmin
         .from("soluciones")
@@ -123,14 +134,16 @@ Deno.serve(async (req) => {
     const correcta =
       solucion.opcion_correcta_id === opcionId;
 
-    // Buscar el intento del usuario.
-    const { data: intentoExistente, error: intentoConsultaError } =
-      await ctx.supabase
-        .from("intentos_leccion")
-        .select("id")
-        .eq("id", intentoId)
-        .eq("usuario_id", usuario.id)
-        .maybeSingle();
+    // Buscar el intento y comprobar su propietario y lección.
+    const {
+      data: intentoExistente,
+      error: intentoConsultaError,
+    } = await ctx.supabase
+      .from("intentos_leccion")
+      .select("id, leccion_id, finalizado, finalizado_en")
+      .eq("id", intentoId)
+      .eq("usuario_id", usuario.id)
+      .maybeSingle();
 
     if (intentoConsultaError) {
       console.error(
@@ -139,21 +152,39 @@ Deno.serve(async (req) => {
       );
 
       return responder(
-        { error: "No se pudo guardar el intento." },
+        { error: "No se pudo consultar el intento." },
         500,
+      );
+    }
+
+    if (
+      intentoExistente &&
+      intentoExistente.leccion_id !== leccionId
+    ) {
+      return responder(
+        { error: "El intento no corresponde a esta lección." },
+        400,
+      );
+    }
+
+    // Impedir que se modifique un intento ya finalizado.
+    if (intentoExistente?.finalizado) {
+      return responder(
+        { error: "Este intento ya está finalizado." },
+        409,
       );
     }
 
     // Crear el intento si todavía no existe.
     if (!intentoExistente) {
-      const { error: crearIntentoError } =
-        await ctx.supabase
-          .from("intentos_leccion")
-          .insert({
-            id: intentoId,
-            usuario_id: usuario.id,
-            leccion_id: leccionId,
-          });
+    const { error: crearIntentoError } =
+      await ctx.supabaseAdmin
+        .from("intentos_leccion")
+        .insert({
+          id: intentoId,
+          usuario_id: usuario.id,
+          leccion_id: leccionId,
+        });
 
       if (crearIntentoError) {
         console.error(
@@ -168,9 +199,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Guardar o actualizar la respuesta seleccionada.
+    // Guardar o actualizar la respuesta.
     const { error: guardarRespuestaError } =
-      await ctx.supabase
+      await ctx.supabaseAdmin
         .from("respuestas_intento")
         .upsert(
           {
@@ -196,11 +227,130 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Devolver el resultado con los encabezados CORS.
+    // Obtener todas las preguntas de la lección.
+    const { data: preguntas, error: preguntasError } =
+      await ctx.supabase
+        .from("preguntas")
+        .select("id")
+        .eq("leccion_id", leccionId);
+
+    if (preguntasError || !preguntas) {
+      console.error(
+        "Error al consultar las preguntas de la lección:",
+        preguntasError,
+      );
+
+      return responder(
+        { error: "No se pudo calcular el resultado de la lección." },
+        500,
+      );
+    }
+
+    // Obtener las respuestas guardadas para este intento.
+    const { data: respuestas, error: respuestasError } =
+      await ctx.supabase
+        .from("respuestas_intento")
+        .select("pregunta_id, correcta")
+        .eq("intento_id", intentoId);
+
+    if (respuestasError || !respuestas) {
+      console.error(
+        "Error al consultar las respuestas del intento:",
+        respuestasError,
+      );
+
+      return responder(
+        { error: "No se pudo calcular el resultado del intento." },
+        500,
+      );
+    }
+
+    const idsPreguntas = new Set(
+      preguntas.map((p) => p.id),
+    );
+
+    const respuestasLeccion = respuestas.filter(
+      (r) => idsPreguntas.has(r.pregunta_id),
+    );
+
+    const totalPreguntas = preguntas.length;
+    const respondidas = respuestasLeccion.length;
+
+    const respuestasCorrectas = respuestasLeccion.filter(
+      (r) => r.correcta,
+    ).length;
+
+    const respuestasIncorrectas =
+      respondidas - respuestasCorrectas;
+
+    const porcentaje =
+      totalPreguntas > 0
+        ? Math.round(
+            (respuestasCorrectas / totalPreguntas) * 100,
+          )
+        : 0;
+
+    const finalizado =
+      totalPreguntas > 0 &&
+      respondidas === totalPreguntas;
+
+    // Mantener el criterio acordado: al menos dos tercios correctos.
+    const minimoAprobacion =
+      Math.ceil((totalPreguntas * 2) / 3);
+
+    const aprobado =
+      finalizado &&
+      respuestasCorrectas >= minimoAprobacion;
+
+    // Preservar la fecha original de finalización si ya estaba finalizado.
+    const finalizadoEn = finalizado
+      ? intentoExistente?.finalizado_en ??
+        new Date().toISOString()
+      : null;
+
+    // Guardar los resultados calculados exclusivamente en el servidor.
+    const { error: actualizarIntentoError } =
+      await ctx.supabaseAdmin
+        .from("intentos_leccion")
+        .update({
+          total_preguntas: totalPreguntas,
+          respuestas_correctas: respuestasCorrectas,
+          respuestas_incorrectas: respuestasIncorrectas,
+          porcentaje,
+          aprobado,
+          finalizado,
+          finalizado_en: finalizadoEn,
+        })
+        .eq("id", intentoId)
+        .eq("usuario_id", usuario.id);
+
+    if (actualizarIntentoError) {
+      console.error(
+        "Error al guardar los resultados del intento:",
+        actualizarIntentoError,
+      );
+
+      return responder(
+        {
+          error:
+            "La respuesta se guardó, pero no se pudo actualizar el resultado.",
+        },
+        500,
+      );
+    }
+
     return responder({
       correcta,
       explicacion: pregunta.explicacion,
       intentoId,
+      totalPreguntas,
+      respondidas,
+      respuestasCorrectas,
+      respuestasIncorrectas,
+      porcentaje,
+      aprobado,
+      finalizado,
+      finalizadoEn,
     });
   } catch (error) {
     console.error("Error en verificar-respuesta:", error);

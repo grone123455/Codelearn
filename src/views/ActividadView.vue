@@ -5,61 +5,48 @@
       v-if="cargando"
       class="estado-pagina"
     >
-      <h1>
-        Cargando actividad...
-      </h1>
-      <p>
-        Estamos obteniendo la actividad desde la base de datos.
-      </p>
+      <h1>Cargando actividad...</h1>
+      <p>Estamos obteniendo la actividad desde la base de datos.</p>
     </div>
+
     <!-- ERROR -->
     <div
       v-else-if="error"
       class="estado-pagina"
     >
-      <h1>
-        No se pudo cargar la actividad
-      </h1>
-      <p>
-        Ocurrió un error al obtener la actividad.
-      </p>
-      <button
-        class="siguiente"
-        @click="cargarActividad"
-      >
+      <h1>No se pudo cargar la actividad</h1>
+      <p>Ocurrió un error al obtener la actividad.</p>
+      <button class="siguiente" @click="cargarActividad">
         Reintentar
       </button>
     </div>
+
     <!-- ACTIVIDAD -->
     <div
       v-else-if="actividad"
       class="contenido"
     >
       <div class="navegacion">
-        <button
-          class="volver"
-          @click="volverALeccion"
-        >
+        <button class="volver" @click="volverALeccion">
           ← Volver a la lección
         </button>
         <span class="contador">
           Actividad {{ numeroActividad }} / {{ totalActividades }}
         </span>
       </div>
+
       <div class="barra">
         <div
           class="barra-progreso"
           :style="{ width: `${progreso}%` }"
         ></div>
       </div>
+
       <div class="encabezado">
-        <span class="etiqueta">
-          ACTIVIDAD
-        </span>
-        <h1>
-          {{ actividad.pregunta }}
-        </h1>
+        <span class="etiqueta">ACTIVIDAD</span>
+        <h1>{{ actividad.pregunta }}</h1>
       </div>
+
       <div class="opciones">
         <button
           v-for="opcion in actividad.opciones"
@@ -75,38 +62,30 @@
               class="radio-seleccionado"
             ></span>
           </span>
-          <span class="texto-opcion">
-            {{ opcion.texto }}
-          </span>
+          <span class="texto-opcion">{{ opcion.texto }}</span>
         </button>
       </div>
+
       <!-- ERROR DE VERIFICACIÓN -->
       <div
         v-if="errorVerificacion"
         class="feedback error-feedback"
       >
-        <div class="feedback-icono">
-          !
-        </div>
+        <div class="feedback-icono">!</div>
         <div>
-          <h2>
-            No se pudo verificar la respuesta
-          </h2>
+          <h2>No se pudo verificar la respuesta</h2>
           <p>
             No pudimos comprobar tu respuesta por un problema de conexión.
             Tu respuesta no fue marcada como correcta ni incorrecta.
           </p>
         </div>
       </div>
+
       <!-- RESULTADO -->
       <div
         v-if="respondida"
         class="feedback"
-        :class="
-          respuestaCorrecta
-            ? 'correcto'
-            : 'incorrecto'
-        "
+        :class="respuestaCorrecta ? 'correcto' : 'incorrecto'"
       >
         <div class="feedback-icono">
           {{ respuestaCorrecta ? "✓" : "✕" }}
@@ -119,20 +98,16 @@
                 : "Respuesta incorrecta"
             }}
           </h2>
-          <p>
-            {{ actividad.explicacion }}
-          </p>
+          <p>{{ actividad.explicacion }}</p>
         </div>
       </div>
+
       <div class="acciones">
         <!-- CONFIRMAR -->
         <button
           v-if="!respondida"
           class="confirmar"
-          :disabled="
-            !respuestaSeleccionada ||
-            verificando
-          "
+          :disabled="!respuestaSeleccionada || verificando"
           @click="confirmarRespuesta"
         >
           {{
@@ -141,6 +116,7 @@
               : "Confirmar respuesta"
           }}
         </button>
+
         <!-- SIGUIENTE -->
         <button
           v-else
@@ -153,6 +129,7 @@
               : "Siguiente actividad →"
           }}
         </button>
+
         <!-- REINTENTAR VERIFICACIÓN -->
         <button
           v-if="errorVerificacion"
@@ -163,26 +140,23 @@
         </button>
       </div>
     </div>
+
     <!-- NO ENCONTRADA -->
     <div
       v-else
       class="error"
     >
-      <h1>
-        Actividad no encontrada
-      </h1>
+      <h1>Actividad no encontrada</h1>
       <p>
         La actividad que estás buscando no existe o no está disponible.
       </p>
-      <button
-        class="siguiente"
-        @click="volverAlCurso"
-      >
+      <button class="siguiente" @click="volverAlCurso">
         Volver al curso
       </button>
     </div>
   </section>
 </template>
+
 <script setup>
 import {
   computed,
@@ -198,22 +172,21 @@ import {
   obtenerActividadesPorLeccion
 } from "../services/datos.js"
 import { supabase } from "../services/supabase.js"
+
 const route = useRoute()
 const router = useRouter()
+
 const actividad = ref(null)
 const actividadesLeccion = ref([])
 const cargando = ref(true)
 const error = ref(false)
 const verificando = ref(false)
 const errorVerificacion = ref(false)
-const respuestaSeleccionada =
-  ref(null)
-const respondida =
-  ref(false)
-const respuestaCorrecta =
-  ref(false)
-
+const respuestaSeleccionada = ref(null)
+const respondida = ref(false)
+const respuestaCorrecta = ref(false)
 const intentoId = ref(null)
+
 // =====================================
 // CARGAR ACTIVIDAD
 // =====================================
@@ -222,26 +195,23 @@ async function cargarActividad() {
     cargando.value = true
     error.value = false
     reiniciarActividad()
-    const resultado =
-      await obtenerActividad(
-        route.params.id
-      )
+
+    const resultado = await obtenerActividad(route.params.id)
     actividad.value = resultado
+
     if (!resultado) {
       actividadesLeccion.value = []
       return
     }
+
     actividadesLeccion.value =
-      await obtenerActividadesPorLeccion(
-        resultado.leccionId
-      )
+      await obtenerActividadesPorLeccion(resultado.leccionId)
 
     // Recuperar o crear el intento actual de esta lección.
     const claveIntento =
       `codelearn_intento_actual_${resultado.leccionId}`
 
-    let intentoGuardado =
-      sessionStorage.getItem(claveIntento)
+    let intentoGuardado = sessionStorage.getItem(claveIntento)
 
     if (!intentoGuardado) {
       intentoGuardado = crypto.randomUUID()
@@ -254,10 +224,7 @@ async function cargarActividad() {
 
     intentoId.value = intentoGuardado
   } catch (e) {
-    console.error(
-      "Error al cargar la actividad:",
-      e
-    )
+    console.error("Error al cargar la actividad:", e)
     error.value = true
     actividad.value = null
     actividadesLeccion.value = []
@@ -265,52 +232,45 @@ async function cargarActividad() {
     cargando.value = false
   }
 }
+
 // =====================================
 // NÚMERO DE ACTIVIDAD
 // =====================================
 const numeroActividad = computed(() => {
-  if (!actividad.value) {
-    return 0
-  }
-  const indice =
-    actividadesLeccion.value.findIndex(
-      actividadActual =>
-        actividadActual.id ===
-        actividad.value.id
-    )
+  if (!actividad.value) return 0
+
+  const indice = actividadesLeccion.value.findIndex(
+    actividadActual => actividadActual.id === actividad.value.id
+  )
+
   return indice + 1
 })
+
 // =====================================
 // TOTAL
 // =====================================
 const totalActividades = computed(() => {
   return actividadesLeccion.value.length
 })
+
 // =====================================
 // PROGRESO
 // =====================================
 const progreso = computed(() => {
-  if (
-    totalActividades.value === 0
-  ) {
-    return 0
-  }
+  if (totalActividades.value === 0) return 0
+
   return (
-    (numeroActividad.value /
-      totalActividades.value) *
-    100
+    (numeroActividad.value / totalActividades.value) * 100
   )
 })
+
 // =====================================
 // ÚLTIMA ACTIVIDAD
 // =====================================
-const esUltimaActividad =
-  computed(() => {
-    return (
-      numeroActividad.value ===
-      totalActividades.value
-    )
-  })
+const esUltimaActividad = computed(() => {
+  return numeroActividad.value === totalActividades.value
+})
+
 // =====================================
 // REINICIAR
 // =====================================
@@ -321,19 +281,16 @@ function reiniciarActividad() {
   verificando.value = false
   errorVerificacion.value = false
 }
+
 // =====================================
 // SELECCIONAR OPCIÓN
 // =====================================
 function seleccionarOpcion(opcionId) {
-  if (
-    respondida.value ||
-    verificando.value
-  ) {
-    return
-  }
-  respuestaSeleccionada.value =
-    opcionId
+  if (respondida.value || verificando.value) return
+
+  respuestaSeleccionada.value = opcionId
 }
+
 // =====================================
 // CONFIRMAR RESPUESTA
 // =====================================
@@ -351,113 +308,94 @@ async function confirmarRespuesta() {
     verificando.value = true
     errorVerificacion.value = false
 
-    const {
-      data,
-      error: errorFuncion
-    } = await supabase.functions.invoke(
-      "verificar-respuesta",
-      {
-        body: {
-          preguntaId: actividad.value.id,
-          opcionId: respuestaSeleccionada.value,
-          intentoId: intentoId.value,
-          leccionId: actividad.value.leccionId
+    const { data, error: errorFuncion } =
+      await supabase.functions.invoke(
+        "verificar-respuesta",
+        {
+          body: {
+            preguntaId: actividad.value.id,
+            opcionId: respuestaSeleccionada.value,
+            intentoId: intentoId.value,
+            leccionId: actividad.value.leccionId
+          }
         }
-      }
-    )
-
-    // INFORMACIÓN TEMPORAL PARA DIAGNOSTICAR EL ERROR
-    console.log(
-      "Respuesta de verificar-respuesta:",
-      {
-        data,
-        errorFuncion
-      }
-    )
+      )
 
     if (errorFuncion) {
       throw errorFuncion
     }
 
-    if (
-      !data ||
-      typeof data.correcta !== "boolean"
-    ) {
-      throw new Error(
-        "Respuesta inválida del servidor."
-      )
+    if (!data || typeof data.correcta !== "boolean") {
+      throw new Error("Respuesta inválida del servidor.")
     }
 
     respuestaCorrecta.value = data.correcta
-
     respondida.value = true
+
+    // Guardar el ID del intento confirmado por el servidor.
+    if (data.intentoId) {
+      intentoId.value = data.intentoId
+    }
 
     guardarResultado()
   } catch (e) {
-    console.error(
-      "Error al verificar la respuesta:",
-      e
-    )
-
+    console.error("Error al verificar la respuesta:", e)
     errorVerificacion.value = true
   } finally {
     verificando.value = false
   }
 }
+
 // =====================================
-// GUARDAR RESULTADO
+// GUARDAR RESULTADO TEMPORAL
 // =====================================
 function guardarResultado() {
-  if (!actividad.value) {
-    return
-  }
-  const resultadosGuardados =
-    JSON.parse(
-      sessionStorage.getItem(
-        "codelearn_resultados"
-      ) || "[]"
-    )
-  const resultadosActualizados =
-    resultadosGuardados.filter(
-      resultado =>
-        resultado.actividadId !==
-        actividad.value.id
-    )
+  if (!actividad.value) return
+
+  const resultadosGuardados = JSON.parse(
+    sessionStorage.getItem("codelearn_resultados") || "[]"
+  )
+
+  const resultadosActualizados = resultadosGuardados.filter(
+    resultado => resultado.actividadId !== actividad.value.id
+  )
+
   resultadosActualizados.push({
-    actividadId:
-      actividad.value.id,
-    leccionId:
-      actividad.value.leccionId,
-    respuestaSeleccionada:
-      respuestaSeleccionada.value,
-    correcta:
-      respuestaCorrecta.value
+    actividadId: actividad.value.id,
+    leccionId: actividad.value.leccionId,
+    intentoId: intentoId.value,
+    respuestaSeleccionada: respuestaSeleccionada.value,
+    correcta: respuestaCorrecta.value
   })
+
   sessionStorage.setItem(
     "codelearn_resultados",
-    JSON.stringify(
-      resultadosActualizados
-    )
+    JSON.stringify(resultadosActualizados)
   )
 }
+
 // =====================================
 // SIGUIENTE ACTIVIDAD
 // =====================================
 function siguienteActividad() {
-  if (!actividad.value) {
-    return
-  }
-  const indiceActual =
-    actividadesLeccion.value.findIndex(
-      actividadActual =>
-        actividadActual.id ===
-        actividad.value.id
-    )
-  const siguiente =
-    actividadesLeccion.value[
-      indiceActual + 1
-    ]
+  if (!actividad.value) return
+
+  const indiceActual = actividadesLeccion.value.findIndex(
+    actividadActual => actividadActual.id === actividad.value.id
+  )
+
+  const siguiente = actividadesLeccion.value[indiceActual + 1]
+
   if (!siguiente) {
+    // Identificar el intento que acaba de terminar.
+    sessionStorage.setItem(
+      "codelearn_ultimo_intento",
+      JSON.stringify({
+        intentoId: intentoId.value,
+        leccionId: actividad.value.leccionId
+      })
+    )
+
     sessionStorage.removeItem(
       `codelearn_intento_actual_${actividad.value.leccionId}`
     )
@@ -465,10 +403,10 @@ function siguienteActividad() {
     router.push("/resultados")
     return
   }
-  router.push(
-    `/actividad/${siguiente.id}`
-  )
+
+  router.push(`/actividad/${siguiente.id}`)
 }
+
 // =====================================
 // VOLVER A LECCIÓN
 // =====================================
@@ -477,52 +415,39 @@ function volverALeccion() {
     volverAlCurso()
     return
   }
+
   router.push(
     `/cursos/javascript/leccion/${actividad.value.leccionId}`
   )
 }
+
 // =====================================
 // VOLVER AL CURSO
 // =====================================
 function volverAlCurso() {
-  router.push(
-    "/cursos/javascript"
-  )
+  router.push("/cursos/javascript")
 }
+
 // =====================================
 // ESTILO DE OPCIÓN
 // =====================================
 function claseOpcion(opcionId) {
   if (!respondida.value) {
-    if (
-      respuestaSeleccionada.value ===
-      opcionId
-    ) {
-      return "seleccionada"
-    }
-    return ""
+    return respuestaSeleccionada.value === opcionId
+      ? "seleccionada"
+      : ""
   }
-  /*
-   * La respuesta correcta NO se conoce
-   * en el navegador.
-   *
-   * Por eso solamente mostramos:
-   * - la opción seleccionada
-   * - si la respuesta fue correcta o incorrecta
-   *
-   * No marcamos visualmente cuál era
-   * la solución correcta.
-   */
-  if (
-    opcionId ===
-    respuestaSeleccionada.value
-  ) {
+
+  // No se revela cuál era la solución correcta.
+  if (opcionId === respuestaSeleccionada.value) {
     return respuestaCorrecta.value
       ? "correcta"
       : "incorrecta"
   }
+
   return ""
 }
+
 // =====================================
 // INICIO
 // =====================================
@@ -530,6 +455,7 @@ onMounted(() => {
   cargarActividad()
 })
 </script>
+
 <style scoped>
 .pagina {
   max-width: 850px;
@@ -608,9 +534,7 @@ h1 {
   color: #f8fafc;
   font-size: 0.95rem;
   cursor: pointer;
-  transition:
-    border-color 0.2s,
-    background 0.2s;
+  transition: border-color 0.2s, background 0.2s;
 }
 .opcion:not(:disabled):hover {
   border-color: #22c55e;

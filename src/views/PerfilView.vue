@@ -25,6 +25,78 @@
           </strong>
         </div>
 
+        <section class="perfil__progreso">
+          <h2>Mi progreso</h2>
+
+          <div v-if="cargandoProgreso" class="perfil__estado">
+            Cargando progreso...
+          </div>
+
+          <template v-else>
+            <div class="perfil__dato">
+              <span class="perfil__etiqueta">
+                Lecciones completadas
+              </span>
+              <strong>
+                {{ progreso.leccionesCompletadas }} de
+                {{ progreso.totalLecciones }}
+              </strong>
+            </div>
+
+            <div
+              class="perfil__barra"
+              role="progressbar"
+              :aria-valuenow="progreso.porcentaje"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              :aria-label="`Progreso de lecciones: ${progreso.porcentaje}%`"
+            >
+              <div
+                class="perfil__barra-valor"
+                :style="{ width: `${progreso.porcentaje}%` }"
+              ></div>
+            </div>
+
+            <p class="perfil__porcentaje">
+              {{ progreso.porcentaje }}% de las lecciones completadas
+            </p>
+
+            <div class="perfil__dato">
+              <span class="perfil__etiqueta">
+                Intentos realizados
+              </span>
+              <strong>{{ progreso.totalIntentos }}</strong>
+            </div>
+
+            <div v-if="progreso.ultimoIntento" class="perfil__ultimo">
+              <h3>Último intento</h3>
+
+              <p>
+                <strong>Lección:</strong>
+                {{ progreso.ultimoIntento.tituloLeccion }}
+              </p>
+
+              <p>
+                <strong>Resultado:</strong>
+                {{ progreso.ultimoIntento.porcentaje ?? 0 }}%
+              </p>
+
+              <p>
+                <strong>Estado:</strong>
+                {{ estadoIntento(progreso.ultimoIntento) }}
+              </p>
+            </div>
+
+            <p v-else class="perfil__descripcion">
+              Todavía no realizaste ninguna actividad.
+            </p>
+          </template>
+
+          <p v-if="errorProgreso" class="perfil__error">
+            {{ errorProgreso }}
+          </p>
+        </section>
+
         <div v-if="esInvitado" class="perfil__conversion">
           <h2>Guardá tu cuenta</h2>
 
@@ -113,7 +185,6 @@
 import { ref, reactive, onMounted } from "vue"
 import { useRouter } from "vue-router"
 import {
-  obtenerSesion,
   convertirInvitado,
   cerrarSesion
 } from "../services/auth.js"
@@ -125,16 +196,111 @@ const usuario = ref(null)
 const alias = ref("")
 const esInvitado = ref(false)
 const cargando = ref(true)
+const cargandoProgreso = ref(true)
 const guardando = ref(false)
 const cerrandoSesion = ref(false)
 const mensaje = ref("")
 const error = ref("")
+const errorProgreso = ref("")
+
+const progreso = ref({
+  totalLecciones: 0,
+  leccionesCompletadas: 0,
+  porcentaje: 0,
+  totalIntentos: 0,
+  ultimoIntento: null
+})
 
 const formulario = reactive({
   alias: "",
   email: "",
   password: ""
 })
+
+async function cargarProgreso(usuarioId) {
+  cargandoProgreso.value = true
+  errorProgreso.value = ""
+
+  try {
+    const { data: lecciones, error: errorLecciones } =
+      await supabase
+        .from("lecciones")
+        .select("id, titulo")
+
+    if (errorLecciones) throw errorLecciones
+
+    const { data: intentos, error: errorIntentos } =
+      await supabase
+        .from("intentos_leccion")
+        .select(`
+          id,
+          leccion_id,
+          creado_en,
+          porcentaje,
+          aprobado,
+          finalizado
+        `)
+        .eq("usuario_id", usuarioId)
+        .order("creado_en", { ascending: false })
+
+    if (errorIntentos) throw errorIntentos
+
+    const listaLecciones = lecciones || []
+    const listaIntentos = intentos || []
+
+    const idsLecciones = new Set(
+      listaLecciones.map(leccion => leccion.id)
+    )
+
+    const leccionesTerminadas = new Set(
+      listaIntentos
+        .filter(intento =>
+          intento.finalizado &&
+          idsLecciones.has(intento.leccion_id)
+        )
+        .map(intento => intento.leccion_id)
+    )
+
+    const totalLecciones = listaLecciones.length
+    const leccionesCompletadas = leccionesTerminadas.size
+
+    const porcentaje = totalLecciones > 0
+      ? Math.round(
+          (leccionesCompletadas / totalLecciones) * 100
+        )
+      : 0
+
+    const ultimo = listaIntentos[0]
+
+    progreso.value = {
+      totalLecciones,
+      leccionesCompletadas,
+      porcentaje,
+      totalIntentos: listaIntentos.length,
+      ultimoIntento: ultimo
+        ? {
+            ...ultimo,
+            tituloLeccion:
+              listaLecciones.find(
+                leccion => leccion.id === ultimo.leccion_id
+              )?.titulo || "Lección no disponible"
+          }
+        : null
+    }
+  } catch (e) {
+    errorProgreso.value =
+      e.message || "No se pudo cargar el progreso."
+  } finally {
+    cargandoProgreso.value = false
+  }
+}
+
+function estadoIntento(intento) {
+  if (!intento.finalizado) return "En curso"
+  return intento.aprobado
+    ? "Completado y aprobado"
+    : "Completado, falta aprobar"
+}
 
 async function cargarPerfil() {
   cargando.value = true
@@ -168,6 +334,8 @@ async function cargarPerfil() {
       perfil?.alias || usuarioActual.user_metadata?.alias || ""
 
     formulario.alias = alias.value
+
+    await cargarProgreso(usuarioActual.id)
   } catch (e) {
     error.value = e.message || "No se pudo cargar el perfil."
   } finally {
@@ -271,12 +439,62 @@ onMounted(cargarPerfil)
   font-size: 13px;
 }
 
-.perfil__conversion {
-  margin-top: 24px;
+.perfil__progreso {
+  margin-top: 28px;
+  padding-top: 8px;
 }
 
+.perfil__progreso h2,
 .perfil__conversion h2 {
   font-size: 20px;
+}
+
+.perfil__barra {
+  width: 100%;
+  height: 12px;
+  margin-top: 18px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #292929;
+}
+
+.perfil__barra-valor {
+  height: 100%;
+  border-radius: 20px;
+  background: #39ff14;
+  transition: width 0.3s ease;
+}
+
+.perfil__porcentaje {
+  color: #39ff14;
+  font-size: 14px;
+}
+
+.perfil__ultimo {
+  margin-top: 22px;
+  padding: 16px;
+  border: 1px solid #292929;
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+}
+
+.perfil__ultimo h3 {
+  margin-top: 0;
+  font-size: 16px;
+}
+
+.perfil__ultimo p {
+  color: #d0d0d0;
+  line-height: 1.5;
+}
+
+.perfil__estado {
+  color: #b5b5b5;
+  padding: 14px 0;
+}
+
+.perfil__conversion {
+  margin-top: 24px;
 }
 
 .perfil form {

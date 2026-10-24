@@ -1,4 +1,5 @@
 
+
 <template>
   <section class="pagina">
     <button
@@ -179,23 +180,58 @@
                 </div>
 
                 <span
-                  v-if="leccionDesbloqueada(leccion)"
+                  v-if="!leccionDesbloqueada(leccion)"
+                  class="estado-leccion bloqueada"
+                >
+                  🔒 Bloqueada
+                </span>
+
+                <span
+                  v-else-if="leccionAprobada(leccion.id)"
                   class="estado-leccion disponible"
                 >
-                  Disponible
+                  ✓ Aprobada
                 </span>
 
                 <span
                   v-else
-                  class="estado-leccion bloqueada"
+                  class="estado-leccion disponible"
                 >
-                  🔒 Bloqueada
+                  Disponible
                 </span>
               </div>
 
               <p>
                 {{ leccion.explicacion }}
               </p>
+
+              <!-- PROGRESO DE LA LECCIÓN -->
+              <div
+                v-if="mejorResultado(leccion.id).total > 0"
+                class="progreso-leccion"
+              >
+                <p>
+                  Mejor resultado:
+                  <strong>
+                    {{ mejorResultado(leccion.id).correctas }}/{{ mejorResultado(leccion.id).total }}
+                    correctas
+                  </strong>
+                </p>
+
+                <p
+                  v-if="leccionCompleta(leccion.id)"
+                  class="texto-completada"
+                >
+                  ✓ Lección completada
+                </p>
+
+                <p
+                  v-else
+                  class="texto-pendiente"
+                >
+                  Lección pendiente
+                </p>
+              </div>
 
               <button
                 v-if="leccionDesbloqueada(leccion)"
@@ -280,6 +316,8 @@
   </section>
 </template>
 
+
+
 <script setup>
 import { onMounted, ref } from "vue"
 import { useRoute, useRouter } from "vue-router"
@@ -287,7 +325,8 @@ import { useRoute, useRouter } from "vue-router"
 import {
   obtenerUnidad,
   obtenerLeccionesPorUnidad,
-  obtenerActividadesPorLeccion
+  obtenerActividadesPorLeccion,
+  obtenerIntentosPorLeccion
 } from "../services/datos.js"
 
 const route = useRoute()
@@ -304,6 +343,7 @@ const errorLecciones = ref(false)
 const errorActividades = ref(false)
 
 const resultadosActividades = ref({})
+const intentosPorLeccion = ref({})
 
 // =====================================
 // CARGAR UNIDAD
@@ -316,6 +356,7 @@ async function cargarUnidad() {
     unidad.value = null
     lecciones.value = []
     resultadosActividades.value = {}
+    intentosPorLeccion.value = {}
     errorLecciones.value = false
     errorActividades.value = false
 
@@ -360,6 +401,7 @@ async function cargarLecciones() {
       )
 
     await cargarActividades()
+    await cargarIntentos()
   } catch (e) {
     console.error(
       "Error al cargar las lecciones:",
@@ -407,15 +449,108 @@ async function cargarActividades() {
 }
 
 // =====================================
-// RESULTADOS DEL USUARIO
+// CARGAR INTENTOS DESDE SUPABASE
 // =====================================
 
-function obtenerResultados() {
-  return JSON.parse(
-    sessionStorage.getItem(
-      "codelearn_resultados"
-    ) || "[]"
+async function cargarIntentos() {
+  intentosPorLeccion.value = {}
+
+  for (const leccion of lecciones.value) {
+    try {
+      const intentos =
+        await obtenerIntentosPorLeccion(
+          leccion.id
+        )
+
+      intentosPorLeccion.value[
+        leccion.id
+      ] = intentos
+    } catch (e) {
+      console.error(
+        "Error al cargar intentos de la lección:",
+        leccion.id,
+        e
+      )
+
+      // No asumir que la lección está aprobada
+      // si falla la consulta.
+      intentosPorLeccion.value[
+        leccion.id
+      ] = []
+    }
+  }
+}
+
+// =====================================
+// COMPROBAR SI UNA LECCIÓN ESTÁ COMPLETA
+// =====================================
+
+function leccionCompleta(leccionId) {
+  const intentos =
+    intentosPorLeccion.value[
+      leccionId
+    ] || []
+
+  return intentos.some(
+    intento =>
+      intento.finalizado === true
   )
+}
+
+// =====================================
+// OBTENER EL MEJOR RESULTADO
+// =====================================
+
+function mejorResultado(leccionId) {
+  const intentos =
+    intentosPorLeccion.value[
+      leccionId
+    ] || []
+
+  if (intentos.length === 0) {
+    return {
+      correctas: 0,
+      total: (
+        resultadosActividades.value[
+          leccionId
+        ] || []
+      ).length
+    }
+  }
+
+  const mejorIntento =
+    intentos.reduce(
+      (mejor, intento) => {
+        const correctas =
+          Number(
+            intento.respuestas_correctas || 0
+          )
+
+        const mejorCorrectas =
+          Number(
+            mejor.respuestas_correctas || 0
+          )
+
+        return correctas > mejorCorrectas
+          ? intento
+          : mejor
+      },
+      intentos[0]
+    )
+
+  return {
+    correctas: Number(
+      mejorIntento.respuestas_correctas || 0
+    ),
+    total: Number(
+      mejorIntento.total_preguntas ||
+      (
+        resultadosActividades.value[
+          leccionId
+        ] || []
+      ).length
+    )
+  }
 }
 
 // =====================================
@@ -423,31 +558,16 @@ function obtenerResultados() {
 // =====================================
 
 function leccionAprobada(leccionId) {
-  const actividades =
-    resultadosActividades.value[
+  const intentos =
+    intentosPorLeccion.value[
       leccionId
     ] || []
 
-  if (actividades.length === 0) {
-    return false
-  }
-
-  const resultados =
-    obtenerResultados()
-
-  const resultadosLeccion =
-    resultados.filter(
-      resultado =>
-        resultado.leccionId === leccionId
-    )
-
-  const respuestasCorrectas =
-    resultadosLeccion.filter(
-      resultado =>
-        resultado.correcta === true
-    ).length
-
-  return respuestasCorrectas >= 2
+  return intentos.some(
+    intento =>
+      intento.finalizado === true &&
+      intento.aprobado === true
+  )
 }
 
 // =====================================
@@ -462,7 +582,8 @@ function leccionDesbloqueada(leccion) {
   const leccionAnterior =
     lecciones.value.find(
       leccionActual =>
-        leccionActual.orden === leccion.orden - 1
+        leccionActual.orden ===
+        leccion.orden - 1
     )
 
   if (!leccionAnterior) {
@@ -506,6 +627,7 @@ onMounted(() => {
   cargarUnidad()
 })
 </script>
+
 
 <style scoped>
 .pagina {
