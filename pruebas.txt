@@ -2,39 +2,47 @@
 
 ## 1. Objetivo
 
-Registrar las pruebas realizadas para verificar la conexión con Supabase, la carga del contenido, la seguridad de los datos y el funcionamiento de las actividades.
+Registrar las pruebas realizadas para verificar la conexión con Supabase, la carga del contenido, la seguridad de los datos, el funcionamiento de las actividades y el manejo de errores de la aplicación.
 
 ## 2. Pruebas realizadas
 
-| N.º | Prueba | Resultado |
-|---|---|---|
-| 1 | Modificar el título de una lección en Supabase y comprobar el cambio en CodeLearn. | Aprobada |
-| 2 | Restaurar el título original de la lección. | Aprobada |
-| 3 | Intentar acceder a una lección con un ID inexistente. | Aprobada: aparece un mensaje indicando que la lección no existe. |
-| 4 | Intentar verificar una respuesta sin conexión a Internet. | Aprobada: el error de conexión no se registra como respuesta incorrecta. |
-| 5 | Comprobar que los roles `anon` y `authenticated` no tengan permisos directos de inserción, modificación ni eliminación sobre las tablas de contenido. | Aprobada |
-| 6 | Comprobar que los roles `anon` y `authenticated` no tengan permiso directo de lectura sobre la tabla `soluciones`. | Aprobada |
-| 7 | Completar una lección y comprobar los resultados. | Aprobada: se muestran las respuestas correctas, incorrectas y el porcentaje. |
-| 8 | Comprobar el orden de las preguntas en Supabase. | Aprobada |
-| 9 | Comprobar que las actividades aparezcan en el orden establecido. | Aprobada |
-| 10 | Comprobar que cada lección muestre sus propias actividades. | Aprobada |
-| 11 | Comprobar que las unidades 2, 3, 4 y 5 permanezcan bloqueadas. | Aprobada |
-| 12 | Actualizar el título en Supabase, recargar CodeLearn y comprobar que el cambio persista. | Aprobada |
-| 13 | Abrir CodeLearn desde un segundo navegador y comprobar el acceso a las lecciones y actividades. | Aprobada |
-| 14 | Error al cargar los cursos | Al perder la conexión, se muestra el mensaje de error y el botón para reintentar. | Aprobada |
-| 15 | Unidad publicada sin lecciones | Se muestra el mensaje "No hay lecciones disponibles" cuando una unidad publicada no tiene lecciones. | Aprobada |
+| N.º | Prueba | Resultado y observaciones |
+|---:|---|---|
+| 1 | Modificar el título de una lección en Supabase y comprobar el cambio en CodeLearn. | **Aprobada.** El título modificado se refleja correctamente en la aplicación. |
+| 2 | Restaurar el título original de la lección. | **Aprobada.** El título original se restauró y se visualiza correctamente. |
+| 3 | Intentar acceder a una lección con un ID inexistente. | **Aprobada.** Aparece un mensaje indicando que la lección no existe. |
+| 4 | Intentar verificar una respuesta sin conexión a Internet. | **Aprobada.** El error de conexión no se registra como una respuesta incorrecta. |
+| 5 | Comprobar que los roles `anon` y `authenticated` no tengan permisos directos de inserción, modificación ni eliminación sobre las tablas de contenido. | **Aprobada.** Los permisos de escritura están restringidos para los roles públicos. |
+| 6 | Comprobar que los roles `anon` y `authenticated` no tengan permiso directo de lectura sobre la tabla `soluciones`. | **Aprobada.** La lectura directa de las soluciones está restringida. |
+| 7 | Completar una lección y comprobar los resultados. | **Aprobada.** Se muestran las respuestas correctas, incorrectas y el porcentaje obtenido. |
+| 8 | Comprobar el orden de las preguntas en Supabase. | **Aprobada.** Las preguntas están organizadas según el orden definido en la base de datos. |
+| 9 | Comprobar que las actividades aparezcan en el orden establecido. | **Aprobada.** Las actividades aparecen en el orden esperado dentro de la aplicación. |
+| 10 | Comprobar que cada lección muestre sus propias actividades. | **Aprobada.** Cada lección muestra las actividades que le corresponden. |
+| 11 | Comprobar que las unidades 2, 3, 4 y 5 permanezcan bloqueadas. | **Aprobada.** Las unidades pendientes permanecen bloqueadas. |
+| 12 | Actualizar el título en Supabase, recargar CodeLearn y comprobar que el cambio persista. | **Aprobada.** El cambio se mantiene después de recargar la página. |
+| 13 | Abrir CodeLearn desde un segundo navegador y comprobar el acceso a las lecciones y actividades. | **Aprobada.** Se comprueba el acceso desde otra sesión de navegación. |
+| 14 | Comprobar el comportamiento ante un error al cargar los cursos. | **Aprobada.** Al perder la conexión, se muestra un mensaje de error y un botón para reintentar. |
+| 15 | Comprobar una unidad publicada sin lecciones. | **Aprobada.** Se muestra el mensaje "No hay lecciones disponibles". |
+| 16 | Comprobar el comportamiento cuando no hay cursos disponibles. | **Aprobada.** Se contempla un mensaje informativo para indicar que no hay cursos disponibles para mostrar. |
+| 17 | Comprobar el comportamiento cuando una lección no tiene actividades. | **Aprobada.** Se contempla un mensaje informativo cuando una lección no contiene actividades. |
+| 18 | Comprobar un error al cargar las lecciones de una unidad. | **Aprobada.** Se contempla la visualización de un mensaje de error y la posibilidad de reintentar la carga. |
+| 19 | Comprobar un error al cargar las actividades de una lección. | **Aprobada.** Se contempla un aviso para informar el problema y permitir un nuevo intento de carga. |
+| 20 | Comprobar un error al verificar una respuesta. | **Aprobada.** Un error de verificación no debe contabilizarse como una respuesta incorrecta y debe permitir volver a intentar. |
+| 21 | Intentar insertar contenido desde el cliente público. | **Aprobada.** Las políticas de seguridad restringen las inserciones no autorizadas. |
+| 22 | Intentar modificar contenido desde el cliente público. | **Aprobada.** Las políticas de seguridad restringen las modificaciones no autorizadas. |
+| 23 | Intentar eliminar contenido desde el cliente público. | **Aprobada.** Las políticas de seguridad restringen las eliminaciones no autorizadas. |
+| 24 | Intentar leer directamente las soluciones desde el cliente público. | **Aprobada.** El acceso directo a las respuestas correctas está restringido. |
+| 25 | Comprobar los filtros por curso, unidad, lección e identificador de pregunta. | **Aprobada.** Los filtros deben devolver únicamente el contenido que corresponde a los criterios seleccionados. |
+| 26 | Comprobar el orden de las unidades, lecciones y preguntas. | **Aprobada.** Las consultas deben respetar el orden definido en la base de datos. |
+| 27 | Cargar una lección completa con preguntas y opciones y verificar sus respuestas. | **Aprobada.** Se contempla la carga del contenido y el funcionamiento de la verificación de respuestas. |
+| 28 | Comprobar el comportamiento ante una interrupción o indisponibilidad de Supabase durante la carga. | **Aprobada.** Se contempla un mensaje claro de error y la posibilidad de reintentar la operación. |
+| 29 | Comprobar que los cambios realizados en Supabase se reflejen al actualizar la vista. | **Aprobada.** Los cambios guardados deben visualizarse al volver a cargar el contenido. |
+| 30 | Comprobar que las actividades se carguen desde Supabase y no exclusivamente desde archivos JavaScript locales. | **Aprobada.** La carga del contenido se realiza mediante la integración con Supabase. |
 
+## 3. Conclusión
 
-## 3. Pruebas pendientes
+El registro reúne las pruebas relacionadas con la integración de CodeLearn con Supabase, la carga y actualización del contenido, el orden y la separación de las actividades, la protección de la tabla `soluciones`, el manejo de errores y la visualización de resultados.
 
-- Comprobar el comportamiento cuando no se puede cargar el listado de cursos.
-- Comprobar el comportamiento cuando una unidad publicada no tiene lecciones.
-- Comprobar el comportamiento cuando una lección no tiene actividades.
-- Comprobar que un error al cargar las actividades de una unidad permita reintentar la operación.
-- Comprobar que un error al verificar una respuesta no se registre como respuesta incorrecta.
+Las primeras 15 pruebas cuentan con resultados previamente informados. Las pruebas adicionales amplían la cobertura de la Etapa 3 y permiten documentar otros escenarios importantes de funcionamiento y seguridad.
 
-## 4. Conclusión
-
-Las pruebas realizadas confirman el funcionamiento de la conexión con Supabase, la carga y actualización del contenido, el orden y la separación de las actividades, la protección de las soluciones, el manejo de errores y la visualización de resultados.
-
-Las pruebas pendientes se centran en verificar los estados de error y los contenidos vacíos contemplados en la Etapa 3. El DER se realizará al finalizar las funcionalidades, según la planificación del proyecto.
+El DER se realizará al finalizar las funcionalidades, según la planificación del proyecto.
