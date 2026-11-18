@@ -9,3 +9,13 @@ entrypoint = "./functions/verificar-respuesta/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/verificar-respuesta/*.html" ]
+
+[functions.iniciar-desafio]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/iniciar-desafio/index.ts"
+
+[functions.crear-desafio]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/crear-desafio/index.ts"

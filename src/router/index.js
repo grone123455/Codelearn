@@ -14,6 +14,7 @@ import IniciarSesionView from "../views/IniciarSesionView.vue"
 import RegistroView from "../views/RegistroView.vue"
 import PerfilView from "../views/PerfilView.vue"
 import RecuperarContrasenaView from "../views/RecuperarContrasenaView.vue"
+import DesafioView from "../views/DesafioView.vue"
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -78,6 +79,11 @@ const router = createRouter({
       path: "/resultados",
       name: "resultados",
       component: ResultadosView
+    },
+    {
+      path: "/desafio",
+      name: "desafio",
+      component: DesafioView
     }
   ]
 })
@@ -86,7 +92,8 @@ const rutasPublicas = [
   "acceso",
   "iniciar-sesion",
   "registro",
-  "recuperar-contrasena"
+  "recuperar-contrasena",
+  "desafio"
 ]
 
 router.beforeEach(async (to) => {
