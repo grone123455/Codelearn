@@ -36,30 +36,27 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Comprobar que exista el encabezado de autorización.
     if (!req.headers.get("Authorization")) {
       return responder(
-        { error: "Tenés que iniciar sesión para comenzar el desafío." },
+        { error: "Tenés que iniciar sesión para jugar en modo competitivo." },
         401,
       );
     }
 
     const ctx = await withSupabase(req);
 
-    // Verificar la identidad del participante.
     const { data: usuarioData, error: usuarioError } =
       await ctx.supabase.auth.getUser();
 
     const usuario = usuarioData?.user;
 
-    if (usuarioError || !usuario) {
+    if (usuarioError || !usuario || usuario.is_anonymous) {
       return responder(
-        { error: "Tenés que iniciar sesión para comenzar el desafío." },
+        { error: "Tenés que iniciar sesión para jugar en modo competitivo." },
         401,
       );
     }
 
-    // Obtener y validar el identificador de la partida.
     const cuerpo = await req.json().catch(() => null);
     const partidaId = cuerpo?.partidaId;
 
@@ -73,7 +70,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Iniciar la partida mediante la función RPC.
+    // Iniciar la partida y asignar el grupo correspondiente.
     const { data, error } = await ctx.supabase.rpc(
       "iniciar_desafio_competitivo",
       {
@@ -82,63 +79,35 @@ Deno.serve(async (req) => {
     );
 
     if (error) {
-      console.error(
-        "Error al iniciar el desafío:",
-        error,
-      );
-
-      const mensaje = error.message || "";
-
-      if (
-        mensaje.includes("período de espera") ||
-        mensaje.includes("otra partida competitiva")
-      ) {
-        return responder(
-          { error: mensaje },
-          409,
-        );
-      }
-
-      if (
-        mensaje.includes("no existe") ||
-        mensaje.includes("No tenés permiso") ||
-        mensaje.includes("no está disponible") ||
-        mensaje.includes("solo inicia")
-      ) {
-        return responder(
-          { error: mensaje },
-          400,
-        );
-      }
+      console.error("Error al iniciar el desafío:", error);
 
       return responder(
-        { error: "No se pudo iniciar el desafío." },
-        500,
+        { error: error.message || "No se pudo iniciar el desafío." },
+        400,
       );
     }
 
-    const resultado = Array.isArray(data)
-      ? data[0]
-      : data;
+    const resultado = Array.isArray(data) ? data[0] : data;
 
-    if (!resultado) {
+    if (
+      !resultado ||
+      typeof resultado !== "object" ||
+      !resultado.grupo_asignado
+    ) {
       return responder(
-        { error: "No se recibió la confirmación del inicio." },
+        { error: "El servidor no devolvió los datos esperados al iniciar la partida." },
         500,
       );
     }
 
     return responder({
       correcto: true,
-      partidaId: resultado.partida_id,
+      partidaId: resultado.partida_id ?? partidaId,
       grupo: resultado.grupo_asignado,
-      iniciadaEn: resultado.iniciada_en,
+      iniciadaEn: resultado.iniciada_en ?? null,
     });
   } catch (error) {
-    console.error(
-      "Error en iniciar-desafio:",
-      error,
-    );
+    console.error("Error en iniciar-desafio:", error);
 
     return responder(
       { error: "Ocurrió un error al iniciar el desafío." },

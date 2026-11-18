@@ -19,3 +19,18 @@ entrypoint = "./functions/iniciar-desafio/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/crear-desafio/index.ts"
+
+[functions.responder-pregunta]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/responder-pregunta/index.ts"
+
+[functions.finalizar-desafio]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/finalizar-desafio/index.ts"
+
+[functions.obtener-pregunta]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/obtener-pregunta/index.ts"
