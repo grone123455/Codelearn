@@ -17,6 +17,7 @@ import RecuperarContrasenaView from "../views/RecuperarContrasenaView.vue"
 import DesafioView from "../views/DesafioView.vue"
 import RankingView from "../views/RankingView.vue"
 import JuegoDesempateView from "../views/JuegoDesempateView.vue"
+import ResultadoDesempateView from "../views/ResultadoDesempateView.vue"
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -96,6 +97,11 @@ const router = createRouter({
       path: "/juego-desempate",
       name: "juego-desempate",
       component: JuegoDesempateView
+    },
+    {
+      path: "/resultado-desempate",
+      name: "resultado-desempate",
+      component: ResultadoDesempateView
     }
   ]
 })

@@ -8,9 +8,11 @@
         <div class="app-topbar__breadcrumb" aria-label="Ubicación actual">
           <span>CodeLearn</span>
           <span class="app-topbar__separator" aria-hidden="true">/</span>
-          <strong>{{ pageTitle }}</strong>
-        </div>
-      </header>
+      <strong>{{ pageTitle }}</strong>
+      </div>
+
+            <NotificationBell />
+</header>
 
       <main class="app-route-content">
         <RouterView :key="$route.fullPath" />
@@ -23,6 +25,7 @@
 import { computed } from "vue"
 import { useRoute } from "vue-router"
 import AppNavbar from "./components/AppNavbar.vue"
+import NotificationBell from "./components/NotificationBell.vue"
 
 const route = useRoute()
 

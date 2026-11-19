@@ -9,13 +9,33 @@
       </div>
 
       <button
-        v-if="estado === 'listo'"
+        v-if="estado === 'listo' && !errorEnfrentamiento && !cargandoEnfrentamiento"
         class="game-button"
+        :disabled="iniciandoIntento"
         @click="iniciarJuego"
       >
-        Comenzar partida
+        {{ iniciandoIntento ? "Iniciando..." : "Comenzar partida" }}
       </button>
     </header>
+
+    <div
+      v-if="modoCompetitivo && cargandoEnfrentamiento"
+      class="game-message"
+    >
+      Cargando enfrentamiento...
+    </div>
+
+    <div v-if="errorEnfrentamiento" class="game-message error">
+      {{ errorEnfrentamiento }}
+    </div>
+
+    <div
+      v-if="modoCompetitivo && enfrentamiento && !errorEnfrentamiento"
+      class="game-message"
+    >
+      <strong>Modo competitivo</strong>
+      <span>Puntaje en disputa: {{ enfrentamiento.puntaje_empatado }}</span>
+    </div>
 
     <div class="game-hud">
       <div class="hud-item">
@@ -57,31 +77,64 @@
           </span>
 
           <h2>
-            {{ estado === 'terminado'
-              ? 'GAME OVER'
-              : estado === 'listo'
-                ? 'Prepará tus reflejos'
-                : 'Monkey Run'
+            {{
+              estado === 'terminado'
+                ? 'GAME OVER'
+                : estado === 'listo'
+                  ? 'Prepará tus reflejos'
+                  : 'Monkey Run'
             }}
           </h2>
 
-          <p v-if="estado === 'listo'">
+          <p v-if="estado === 'listo' && !errorEnfrentamiento">
             El mono necesita tu ayuda para escapar de la jungla digital.
+          </p>
+
+          <p v-if="cargandoEnfrentamiento">
+            Verificando tu participación...
           </p>
 
           <template v-if="estado === 'terminado'">
             <p>Tu puntuación final</p>
             <strong class="final-score">{{ puntuacion }}</strong>
             <p>Tiempo sobrevivido: {{ tiempo }} segundos</p>
-            <p class="return-hint">Podés volver a CodeLearn desde el menú.</p>
+
+            <template v-if="modoCompetitivo">
+              <p v-if="guardandoResultado">
+                Guardando tu resultado...
+              </p>
+
+              <p v-else-if="resultadoGuardado" class="save-success">
+                Resultado registrado correctamente.
+              </p>
+
+              <template v-else>
+                <p class="save-error">
+                  {{ errorGuardado || "No se pudo guardar tu resultado." }}
+                </p>
+
+                <button
+                  class="game-button"
+                  :disabled="guardandoResultado"
+                  @click="guardarResultado"
+                >
+                  Reintentar guardado
+                </button>
+              </template>
+            </template>
+
+            <p class="return-hint">
+              Podés volver a CodeLearn desde el menú.
+            </p>
           </template>
 
           <button
-            v-if="estado === 'listo'"
+            v-if="estado === 'listo' && !errorEnfrentamiento && !cargandoEnfrentamiento"
             class="game-button"
+            :disabled="iniciandoIntento"
             @click="iniciarJuego"
           >
-            Comenzar
+            {{ iniciandoIntento ? "Iniciando..." : "Comenzar" }}
           </button>
         </div>
       </div>
@@ -126,9 +179,17 @@
   </section>
 </template>
 
-
 <script setup>
 import { ref, onMounted, onUnmounted } from "vue"
+import { useRoute } from "vue-router"
+import { supabase } from "../services/supabase.js"
+
+import {
+  obtenerDesempate,
+  iniciarDesempate,
+  finalizarDesempate,
+  abandonarDesempate
+} from "../services/desempates.js"
 
 import correrSrc from "../assets/monkey-run/correr/spritesheet_nuevo.png"
 import saltarSrc from "../assets/monkey-run/saltar/spritesheet.png"
@@ -136,7 +197,21 @@ import deslizarSrc from "../assets/monkey-run/deslizar/spritesheet.png"
 import danioSrc from "../assets/monkey-run/danio/spritesheet.png"
 import derrotaSrc from "../assets/monkey-run/derrota/spritesheet.png"
 
+const route = useRoute()
 const canvas = ref(null)
+
+const desempateId = route.query.desempate || null
+const modoCompetitivo = ref(Boolean(desempateId))
+
+const enfrentamiento = ref(null)
+const cargandoEnfrentamiento = ref(Boolean(desempateId))
+const errorEnfrentamiento = ref("")
+
+const resultadoGuardado = ref(false)
+const guardandoResultado = ref(false)
+const errorGuardado = ref("")
+const iniciandoIntento = ref(false)
+const intentoIniciado = ref(false)
 
 const estado = ref("listo")
 const puntuacion = ref(0)
@@ -162,18 +237,18 @@ let ctx
 let frameId = null
 let ultimoFrame = 0
 let tiempoAcumulado = 0
-let tiempoAnimacion = 0
 let tiempoInvulnerable = 0
 let tiempoAnimacionDanio = 0
 let intervaloObstaculo = 0
 let intervaloBanana = 0
+
 let obstaculos = []
 let bananas = []
 let particulas = []
+
 let sueloOffset = 0
 let velocidad = 360
 let presionandoDeslizar = false
-let saltoActivo = false
 let cargando = true
 let juegoTerminado = false
 
@@ -200,6 +275,55 @@ const coloresBananas = [
   { color: "#bd78ff", puntos: 30 },
   { color: "#ffd45c", puntos: 50 }
 ]
+
+// Validar el acceso al enfrentamiento competitivo.
+async function cargarEnfrentamiento() {
+  if (!desempateId) return
+
+  try {
+    cargandoEnfrentamiento.value = true
+    errorEnfrentamiento.value = ""
+
+    const datos = await obtenerDesempate(desempateId)
+
+    if (!datos) {
+      throw new Error("No se encontró el enfrentamiento.")
+    }
+
+    const { data, error } = await supabase.auth.getSession()
+
+    if (error) throw error
+
+    const usuarioId = data.session?.user?.id
+
+    if (!usuarioId) {
+      throw new Error("Tenés que iniciar sesión.")
+    }
+
+    const participante = datos.participantes?.find(
+      (p) => p.usuario_id === usuarioId
+    )
+
+    if (!participante) {
+      throw new Error("No participás en este enfrentamiento.")
+    }
+
+    if (datos.estado === "resuelto") {
+      throw new Error("Este enfrentamiento ya fue resuelto.")
+    }
+
+    if (participante.estado !== "pendiente") {
+      throw new Error("Ya utilizaste tu intento en este enfrentamiento.")
+    }
+
+    enfrentamiento.value = datos
+  } catch (error) {
+    errorEnfrentamiento.value =
+      error.message || "No se pudo cargar el enfrentamiento."
+  } finally {
+    cargandoEnfrentamiento.value = false
+  }
+}
 
 function cargarImagenes() {
   const promesas = Object.entries(animaciones).map(([nombre, datos]) => {
@@ -246,25 +370,116 @@ function reiniciarEstado() {
   velocidad = 360
   sueloOffset = 0
   tiempoAcumulado = 0
-  tiempoAnimacion = 0
   tiempoInvulnerable = 0
   tiempoAnimacionDanio = 0
   intervaloObstaculo = 0
   intervaloBanana = 0
 
   presionandoDeslizar = false
-  saltoActivo = false
   juegoTerminado = false
 }
 
-function iniciarJuego() {
-  if (cargando || estado.value === "jugando") return
+// Iniciar el intento en Supabase antes de comenzar el juego.
+async function iniciarJuego() {
+  if (
+    cargando ||
+    estado.value === "jugando" ||
+    cargandoEnfrentamiento.value ||
+    errorEnfrentamiento.value ||
+    iniciandoIntento.value
+  ) return
 
-  reiniciarEstado()
-  estado.value = "jugando"
+  iniciandoIntento.value = true
 
-  ultimoFrame = performance.now()
-  frameId = requestAnimationFrame(actualizar)
+  try {
+    if (modoCompetitivo.value) {
+      await iniciarDesempate(desempateId)
+      intentoIniciado.value = true
+    }
+
+    reiniciarEstado()
+    estado.value = "jugando"
+
+    ultimoFrame = performance.now()
+    frameId = requestAnimationFrame(actualizar)
+  } catch (error) {
+    errorEnfrentamiento.value =
+      error.message || "No se pudo iniciar el enfrentamiento."
+  } finally {
+    iniciandoIntento.value = false
+  }
+}
+
+// Comprobar si Supabase ya registró el resultado.
+// Esto evita duplicar el envío si se perdió la respuesta de la primera RPC.
+async function comprobarResultadoGuardado() {
+  const datos = await obtenerDesempate(desempateId)
+
+  const { data, error } = await supabase.auth.getSession()
+
+  if (error) throw error
+
+  const usuarioId = data.session?.user?.id
+
+  if (!usuarioId) {
+    throw new Error("No se pudo verificar la sesión del usuario.")
+  }
+
+  const participante = datos.participantes?.find(
+    (p) => p.usuario_id === usuarioId
+  )
+
+  if (!participante) {
+    throw new Error("No se encontró tu participación en el enfrentamiento.")
+  }
+
+  return participante.estado === "completado"
+}
+
+// Guardar el resultado competitivo al finalizar el juego.
+async function guardarResultado() {
+  if (
+    !modoCompetitivo.value ||
+    !desempateId ||
+    !intentoIniciado.value ||
+    resultadoGuardado.value ||
+    guardandoResultado.value
+  ) return
+
+  guardandoResultado.value = true
+  errorGuardado.value = ""
+
+  try {
+    await finalizarDesempate(
+      desempateId,
+      puntuacion.value,
+      tiempo.value
+    )
+
+    resultadoGuardado.value = true
+    intentoIniciado.value = false
+  } catch (error) {
+    // La RPC pudo haberse ejecutado aunque la respuesta no haya llegado.
+    try {
+      const yaGuardado = await comprobarResultadoGuardado()
+
+      if (yaGuardado) {
+        resultadoGuardado.value = true
+        intentoIniciado.value = false
+        return
+      }
+    } catch (errorVerificacion) {
+      console.error(
+        "No se pudo verificar el resultado:",
+        errorVerificacion
+      )
+    }
+
+    errorGuardado.value =
+      error.message || "No se pudo registrar el resultado."
+  } finally {
+    guardandoResultado.value = false
+  }
 }
 
 function saltar() {
@@ -460,11 +675,19 @@ function comprobarColisiones() {
     }
   })
 
-  obstaculos = obstaculos.filter((objeto) => objeto.x + objeto.ancho > 0)
-  bananas = bananas.filter((objeto) => objeto.x + objeto.radio > 0 && !objeto.recogida)
+  obstaculos = obstaculos.filter(
+    (objeto) => objeto.x + objeto.ancho > 0
+  )
+
+  bananas = bananas.filter(
+    (objeto) => objeto.x + objeto.radio > 0 && !objeto.recogida
+  )
 }
 
+// Terminar el juego y registrar el resultado si es competitivo.
 function terminarJuego() {
+  if (juegoTerminado) return
+
   juegoTerminado = true
   estado.value = "terminado"
   jugador.animacion = "derrota"
@@ -476,6 +699,10 @@ function terminarJuego() {
   }
 
   dibujar()
+
+  if (modoCompetitivo.value) {
+    guardarResultado()
+  }
 }
 
 function actualizarPartida(dt) {
@@ -493,7 +720,10 @@ function actualizarPartida(dt) {
   intervaloObstaculo += dt
   intervaloBanana += dt
 
-  const frecuenciaObstaculos = Math.max(0.85, 1.65 - tiempoAcumulado * 0.012)
+  const frecuenciaObstaculos = Math.max(
+    0.85,
+    1.65 - tiempoAcumulado * 0.012
+  )
 
   if (intervaloObstaculo >= frecuenciaObstaculos) {
     intervaloObstaculo = 0
@@ -519,7 +749,9 @@ function actualizarPartida(dt) {
     particula.vida -= dt
   })
 
-  particulas = particulas.filter((particula) => particula.vida > 0)
+  particulas = particulas.filter(
+    (particula) => particula.vida > 0
+  )
 
   actualizarJugador(dt)
   comprobarColisiones()
@@ -527,6 +759,7 @@ function actualizarPartida(dt) {
 
 function dibujarFondo() {
   const gradiente = ctx.createLinearGradient(0, 0, 0, 420)
+
   gradiente.addColorStop(0, "#071c25")
   gradiente.addColorStop(1, "#102d29")
 
@@ -572,6 +805,7 @@ function dibujarJugador() {
   if (!imagen) return
 
   const datos = animaciones[nombre]
+
   const cuadro = Math.min(
     Math.floor(jugador.frame),
     datos.cuadros - 1
@@ -584,7 +818,10 @@ function dibujarJugador() {
 
   ctx.save()
 
-  if (tiempoInvulnerable > 0 && Math.floor(tiempoInvulnerable * 12) % 2 === 0) {
+  if (
+    tiempoInvulnerable > 0 &&
+    Math.floor(tiempoInvulnerable * 12) % 2 === 0
+  ) {
     ctx.globalAlpha = 0.35
   }
 
@@ -636,20 +873,31 @@ function dibujarObstaculos() {
 
     if (obstaculo.tipo === "bug") {
       ctx.fillStyle = "#f05270"
-      ctx.fillRect(obstaculo.x, obstaculo.y, obstaculo.ancho, obstaculo.alto)
+      ctx.fillRect(
+        obstaculo.x,
+        obstaculo.y,
+        obstaculo.ancho,
+        obstaculo.alto
+      )
 
       ctx.fillStyle = "#ffffff"
       ctx.fillRect(obstaculo.x + 12, obstaculo.y + 18, 8, 8)
       ctx.fillRect(obstaculo.x + 34, obstaculo.y + 18, 8, 8)
     } else if (obstaculo.tipo === "error") {
       ctx.fillStyle = "#9d4058"
-      ctx.fillRect(obstaculo.x, obstaculo.y, obstaculo.ancho, obstaculo.alto)
+      ctx.fillRect(
+        obstaculo.x,
+        obstaculo.y,
+        obstaculo.ancho,
+        obstaculo.alto
+      )
 
       ctx.fillStyle = "#ffffff"
       ctx.font = "bold 25px monospace"
       ctx.fillText("!", obstaculo.x + 25, obstaculo.y + 31)
     } else {
       ctx.fillStyle = "#9c55d6"
+
       ctx.beginPath()
       ctx.arc(
         obstaculo.x + obstaculo.ancho / 2,
@@ -751,7 +999,11 @@ function soltarTecla(evento) {
 onMounted(async () => {
   ctx = canvas.value.getContext("2d")
 
-  await cargarImagenes()
+  await Promise.all([
+    cargarImagenes(),
+    cargarEnfrentamiento()
+  ])
+
   cargando = false
 
   jugador.y = ALTURA_SUELO - jugador.alto
@@ -769,9 +1021,20 @@ onUnmounted(() => {
 
   window.removeEventListener("keydown", manejarTeclado)
   window.removeEventListener("keyup", soltarTecla)
+
+  // Registrar abandono si sale de la vista mientras juega.
+  if (
+    modoCompetitivo.value &&
+    intentoIniciado.value &&
+    !resultadoGuardado.value &&
+    estado.value === "jugando"
+  ) {
+    abandonarDesempate(desempateId).catch((error) => {
+      console.error("No se pudo registrar el abandono:", error)
+    })
+  }
 })
 </script>
-
 
 <style scoped>
 .monkey-game {
@@ -826,6 +1089,30 @@ onUnmounted(() => {
 .game-button:hover {
   background: #83e6a8;
   transform: translateY(-2px);
+}
+
+.game-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.game-message {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 12px 16px;
+  border: 1px solid #315a4c;
+  border-radius: 10px;
+  background: #102b27;
+  color: #75e7a3;
+  font-size: 13px;
+}
+
+.game-message.error {
+  border-color: #8e3d4d;
+  background: #321c27;
+  color: #ff9ba9;
 }
 
 .game-hud {
@@ -933,6 +1220,14 @@ onUnmounted(() => {
   margin: 10px 0;
   color: #75e7a3;
   font-size: 42px;
+}
+
+.save-success {
+  color: #75e7a3 !important;
+}
+
+.save-error {
+  color: #ff9ba9 !important;
 }
 
 .return-hint {
