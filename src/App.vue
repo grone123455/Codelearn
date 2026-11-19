@@ -1,3 +1,4 @@
+
 <template>
   <div :class="['app-shell', { 'app-shell--public': !showNavigation }]">
     <AppNavbar v-if="showNavigation" />
@@ -24,6 +25,7 @@ import { useRoute } from "vue-router"
 import AppNavbar from "./components/AppNavbar.vue"
 
 const route = useRoute()
+
 const publicRoutes = new Set([
   "acceso",
   "iniciar-sesion",
@@ -32,6 +34,7 @@ const publicRoutes = new Set([
 ])
 
 const showNavigation = computed(() => !publicRoutes.has(route.name))
+
 const pageTitles = {
   inicio: "Inicio",
   cursos: "Cursos",
@@ -40,7 +43,11 @@ const pageTitles = {
   leccion: "Lección",
   actividad: "Práctica",
   resultados: "Resultados",
-  perfil: "Mi perfil"
+  perfil: "Mi perfil",
+  desafio: "Desafío",
+  ranking: "Tabla de posiciones",
+  "juego-desempate": "Juego de desempate"
 }
+
 const pageTitle = computed(() => pageTitles[route.name] || "Aprendizaje")
 </script>

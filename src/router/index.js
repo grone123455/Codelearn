@@ -15,6 +15,8 @@ import RegistroView from "../views/RegistroView.vue"
 import PerfilView from "../views/PerfilView.vue"
 import RecuperarContrasenaView from "../views/RecuperarContrasenaView.vue"
 import DesafioView from "../views/DesafioView.vue"
+import RankingView from "../views/RankingView.vue"
+import JuegoDesempateView from "../views/JuegoDesempateView.vue"
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -84,6 +86,16 @@ const router = createRouter({
       path: "/desafio",
       name: "desafio",
       component: DesafioView
+    },
+    {
+      path: "/ranking",
+      name: "ranking",
+      component: RankingView
+    },
+    {
+      path: "/juego-desempate",
+      name: "juego-desempate",
+      component: JuegoDesempateView
     }
   ]
 })
@@ -93,7 +105,9 @@ const rutasPublicas = [
   "iniciar-sesion",
   "registro",
   "recuperar-contrasena",
-  "desafio"
+  "desafio",
+  "ranking",
+  "juego-desempate"
 ]
 
 router.beforeEach(async (to) => {

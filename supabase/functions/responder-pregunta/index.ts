@@ -110,9 +110,12 @@ Deno.serve(async (req) => {
       )
     }
 
-    if (!data?.respondida) {
+    if (
+      !data?.respondida ||
+      typeof data.correcta !== "boolean"
+    ) {
       return respuesta(
-        { error: "El servidor no confirmó el registro de la respuesta." },
+        { error: "El servidor no devolvió un resultado válido para la respuesta." },
         500
       )
     }
@@ -120,6 +123,7 @@ Deno.serve(async (req) => {
     return respuesta({
       correcto: true,
       respondida: true,
+      correcta: data.correcta,
     })
   } catch (error) {
     console.error("Error en responder-pregunta:", error)

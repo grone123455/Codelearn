@@ -1,7 +1,9 @@
 
 <script setup>
 import { ref, onUnmounted } from "vue"
+import { RouterLink } from "vue-router"
 import { supabase } from "../services/supabase.js"
+
 import {
   crearPartidaCompetitiva,
   iniciarDesafioCompetitivo,
@@ -16,14 +18,13 @@ const enviandoRespuesta = ref(false)
 const respuestaRegistrada = ref(false)
 const mensajeError = ref("")
 const cuentaRegresiva = ref(3)
-
 const partidaId = ref(null)
 const grupoAsignado = ref(null)
 const preguntaActual = ref(null)
 const opcionSeleccionadaId = ref(null)
+const resultadoRespuesta = ref(null)
 const resultadoFinal = ref(null)
 const mostrarConfirmacionAbandono = ref(false)
-
 const tiempoTranscurrido = ref(0)
 
 let intervaloCronometro = null
@@ -51,7 +52,6 @@ async function actualizarTokenSesion() {
     throw new Error("No se pudo obtener la sesión del participante.")
   }
 }
-
 
 function esperar(ms) {
   return new Promise(resolve => {
@@ -112,7 +112,6 @@ function iniciarCronometro(iniciadaEn) {
   }
 
   actualizar()
-
   intervaloCronometro = setInterval(actualizar, 1000)
 }
 
@@ -182,12 +181,17 @@ async function iniciarPartida() {
   }
 }
 
-function seleccionarOpcion(opcionId) {
-  if (enviandoRespuesta.value || respuestaRegistrada.value) {
+async function seleccionarOpcion(opcionId) {
+  if (
+    enviandoRespuesta.value ||
+    respuestaRegistrada.value ||
+    resultadoRespuesta.value !== null
+  ) {
     return
   }
 
   opcionSeleccionadaId.value = opcionId
+  await confirmarRespuesta()
 }
 
 async function finalizarPartidaCompleta() {
@@ -202,7 +206,6 @@ async function finalizarPartidaCompleta() {
 
     detenerCronometro()
     partidaActivaServidor = false
-
     resultadoFinal.value = resultado
     estado.value = "resultados"
   } catch (error) {
@@ -214,7 +217,11 @@ async function finalizarPartidaCompleta() {
 }
 
 async function confirmarRespuesta() {
-  if (enviandoRespuesta.value || !preguntaActual.value) {
+  if (
+    enviandoRespuesta.value ||
+    !preguntaActual.value ||
+    !opcionSeleccionadaId.value
+  ) {
     return
   }
 
@@ -222,38 +229,60 @@ async function confirmarRespuesta() {
   mensajeError.value = ""
 
   try {
-    // Si la respuesta todavía no fue registrada,
-    // se envía al servidor.
-    if (!respuestaRegistrada.value) {
-      await responderPreguntaCompetitiva(
-        partidaId.value,
-        preguntaActual.value.id,
-        opcionSeleccionadaId.value
-      )
-
-      respuestaRegistrada.value = true
-    }
-
-    // Se solicita la siguiente pregunta.
-    const resultadoPregunta = await obtenerSiguientePregunta(
-      partidaId.value
+    const correcta = await responderPreguntaCompetitiva(
+      partidaId.value,
+      preguntaActual.value.id,
+      opcionSeleccionadaId.value
     )
 
-    // Si no quedan preguntas, se finaliza la partida.
-    if (resultadoPregunta.finalizado) {
-      await finalizarPartidaCompleta()
-      return
-    }
+    respuestaRegistrada.value = true
+    resultadoRespuesta.value = correcta
 
-    // Preparar la siguiente pregunta.
-    preguntaActual.value = resultadoPregunta.pregunta
-    opcionSeleccionadaId.value = null
-    respuestaRegistrada.value = false
+    await esperar(900)
+
+    await avanzarPregunta()
   } catch (error) {
     console.error("Error al procesar la respuesta:", error)
 
     mensajeError.value =
       error.message || "No se pudo procesar la respuesta."
+  } finally {
+    enviandoRespuesta.value = false
+  }
+}
+
+async function avanzarPregunta() {
+  const resultadoPregunta = await obtenerSiguientePregunta(
+    partidaId.value
+  )
+
+  if (resultadoPregunta.finalizado) {
+    await finalizarPartidaCompleta()
+    return
+  }
+
+  preguntaActual.value = resultadoPregunta.pregunta
+  opcionSeleccionadaId.value = null
+  respuestaRegistrada.value = false
+  resultadoRespuesta.value = null
+  mensajeError.value = ""
+}
+
+async function reintentarAvance() {
+  if (!respuestaRegistrada.value || enviandoRespuesta.value) {
+    return
+  }
+
+  enviandoRespuesta.value = true
+  mensajeError.value = ""
+
+  try {
+    await avanzarPregunta()
+  } catch (error) {
+    console.error("Error al cargar la siguiente pregunta:", error)
+
+    mensajeError.value =
+      error.message || "No se pudo cargar la siguiente pregunta."
   } finally {
     enviandoRespuesta.value = false
   }
@@ -280,6 +309,7 @@ async function confirmarAbandono() {
     estado.value = "resultados"
   } catch (error) {
     console.error("Error al abandonar el desafío:", error)
+
     mensajeError.value =
       error.message || "No se pudo finalizar la partida. Intentá nuevamente."
   } finally {
@@ -291,46 +321,45 @@ async function reintentarFinalizacion() {
   if (enviandoRespuesta.value) return
 
   enviandoRespuesta.value = true
+
   await finalizarPartidaCompleta()
+
   enviandoRespuesta.value = false
 }
 
 function volverAlInicio() {
   detenerCronometro()
+
   partidaActivaServidor = false
   solicitudCierreEnviada = false
-
   estado.value = "inicio"
   cargando.value = false
   enviandoRespuesta.value = false
   respuestaRegistrada.value = false
   mensajeError.value = ""
-
   partidaId.value = null
   grupoAsignado.value = null
   preguntaActual.value = null
   opcionSeleccionadaId.value = null
+  resultadoRespuesta.value = null
   resultadoFinal.value = null
-
   tiempoTranscurrido.value = 0
 }
 
 onUnmounted(() => {
   detenerCronometro()
-
   window.removeEventListener("pagehide", finalizarAlCerrar)
-
   authListener.subscription.unsubscribe()
 })
 </script>
-
-
 
 <template>
   <section class="pagina desafio">
     <header class="desafio__encabezado">
       <span class="etiqueta">PONÉ A PRUEBA TUS CONOCIMIENTOS</span>
+
       <h1>Desafío<span>.</span></h1>
+
       <p>
         Demostrá lo que sabés de programación, resolvé problemas
         y competí para alcanzar el primer puesto.
@@ -341,7 +370,9 @@ onUnmounted(() => {
       <section class="desafio__hero">
         <div class="desafio__hero-contenido">
           <span class="desafio__insignia">CODELEARN COMPETITIVO</span>
+
           <h2>¿Estás listo para el desafío?</h2>
+
           <p>
             Enfrentate a preguntas de HTML, CSS, JavaScript y lógica.
             Cada respuesta correcta suma puntos. ¡Superá tus propios
@@ -355,11 +386,14 @@ onUnmounted(() => {
       <section class="desafio__modos">
         <article class="desafio__modo">
           <span class="desafio__modo-icono">01</span>
+
           <h3>Modo competitivo</h3>
+
           <p>
             Participá con tu cuenta, acumulá puntos y competí
             por un lugar en el ranking general.
           </p>
+
           <ul>
             <li>20 preguntas por partida</li>
             <li>10 puntos por respuesta correcta</li>
@@ -378,11 +412,14 @@ onUnmounted(() => {
 
         <article class="desafio__modo">
           <span class="desafio__modo-icono desafio__modo-icono--azul">02</span>
+
           <h3>Modo práctica</h3>
+
           <p>
             Entrená tus conocimientos sin necesidad de registrarte
             y familiarizate con los desafíos.
           </p>
+
           <ul>
             <li>5 preguntas por partida</li>
             <li>Preguntas de distintas categorías</li>
@@ -397,7 +434,9 @@ onUnmounted(() => {
       class="desafio__partida desafio__cuenta-contenedor"
     >
       <span class="etiqueta">PREPARATE</span>
+
       <h2>El desafío comienza en</h2>
+
       <strong class="desafio__cuenta">{{ cuentaRegresiva }}</strong>
     </section>
 
@@ -408,6 +447,7 @@ onUnmounted(() => {
       <div class="desafio__partida-encabezado">
         <div>
           <span class="etiqueta">DESAFÍO COMPETITIVO</span>
+
           <p class="desafio__grupo">
             Grupo {{ grupoAsignado }}
           </p>
@@ -433,33 +473,57 @@ onUnmounted(() => {
           class="desafio__opcion"
           :class="{
             'desafio__opcion--seleccionada':
-              opcionSeleccionadaId === opcion.id
+              opcionSeleccionadaId === opcion.id &&
+              resultadoRespuesta === null,
+            'desafio__opcion--correcta':
+              opcionSeleccionadaId === opcion.id &&
+              resultadoRespuesta === true,
+            'desafio__opcion--incorrecta':
+              opcionSeleccionadaId === opcion.id &&
+              resultadoRespuesta === false
           }"
           :disabled="enviandoRespuesta || respuestaRegistrada"
           @click="seleccionarOpcion(opcion.id)"
         >
           <strong>{{ String.fromCharCode(65 + indice) }}</strong>
+
           <span>{{ opcion.texto }}</span>
         </button>
       </div>
 
-      <p class="desafio__ayuda">
-        Podés seleccionar una opción o confirmar sin responder.
+      <p
+        v-if="resultadoRespuesta === true"
+        class="desafio__ayuda desafio__ayuda--correcta"
+      >
+        ¡Respuesta correcta! +10 puntos.
+      </p>
+
+      <p
+        v-else-if="resultadoRespuesta === false"
+        class="desafio__ayuda desafio__ayuda--incorrecta"
+      >
+        Respuesta incorrecta. No sumaste puntos.
+      </p>
+
+      <p
+        v-else-if="enviandoRespuesta && !respuestaRegistrada"
+        class="desafio__ayuda"
+      >
+        Registrando respuesta...
+      </p>
+
+      <p v-else class="desafio__ayuda">
+        Seleccioná una opción para responder. No podrás cambiarla después.
       </p>
 
       <button
-        class="desafio__boton desafio__boton--confirmar"
+        v-if="respuestaRegistrada && mensajeError"
+        class="desafio__boton"
         type="button"
         :disabled="enviandoRespuesta"
-        @click="confirmarRespuesta"
+        @click="reintentarAvance"
       >
-        {{
-          enviandoRespuesta
-            ? "Procesando..."
-            : respuestaRegistrada
-              ? "Continuar"
-              : "Confirmar respuesta"
-        }}
+        {{ enviandoRespuesta ? "Cargando..." : "Reintentar cargar pregunta" }}
       </button>
 
       <button
@@ -532,7 +596,9 @@ onUnmounted(() => {
       class="desafio__partida desafio__resultado"
     >
       <span class="etiqueta">DESAFÍO COMPLETADO</span>
+
       <h2>Registrando tu resultado...</h2>
+
       <p>Estamos guardando tu puntaje y tu tiempo.</p>
 
       <button
@@ -583,6 +649,13 @@ onUnmounted(() => {
         Tu mejor resultado anterior se mantiene en el ranking.
       </p>
 
+      <RouterLink
+        to="/ranking"
+        class="desafio__boton desafio__boton--ranking"
+      >
+        Ver tabla de posiciones
+      </RouterLink>
+
       <button
         class="desafio__boton"
         type="button"
@@ -592,7 +665,10 @@ onUnmounted(() => {
       </button>
     </section>
 
-    <p v-if="mensajeError && !mostrarConfirmacionAbandono" class="desafio__error">
+    <p
+      v-if="mensajeError && !mostrarConfirmacionAbandono"
+      class="desafio__error"
+    >
       {{ mensajeError }}
     </p>
 
@@ -611,7 +687,7 @@ onUnmounted(() => {
           <div>
             <h3>Una respuesta definitiva</h3>
             <p>
-              Una vez confirmada, no podrás modificar tu respuesta
+              Una vez seleccionada, no podrás modificar tu respuesta
               ni volver a la pregunta anterior.
             </p>
           </div>
@@ -653,9 +729,6 @@ onUnmounted(() => {
     </section>
   </section>
 </template>
-
-
-
 
 <style scoped>
 .desafio__encabezado {
@@ -852,6 +925,15 @@ onUnmounted(() => {
   cursor: not-allowed;
 }
 
+.desafio__boton--ranking {
+  display: block;
+  border: 1px solid rgba(140, 230, 172, 0.35);
+  background: rgba(140, 230, 172, 0.08);
+  color: var(--color-accent);
+  text-align: center;
+  text-decoration: none;
+}
+
 .desafio__partida {
   margin-top: 25px;
   padding: 30px;
@@ -937,6 +1019,26 @@ onUnmounted(() => {
 .desafio__opcion--seleccionada {
   border-color: var(--color-accent);
   background: rgba(140, 230, 172, 0.12);
+}
+
+.desafio__opcion--correcta {
+  border-color: #36c978;
+  background: rgba(54, 201, 120, 0.16);
+  color: #7ce6a7;
+}
+
+.desafio__opcion--incorrecta {
+  border-color: #ed5555;
+  background: rgba(237, 85, 85, 0.16);
+  color: #ff8585;
+}
+
+.desafio__ayuda--correcta {
+  color: #7ce6a7;
+}
+
+.desafio__ayuda--incorrecta {
+  color: #ff8585;
 }
 
 .desafio__opcion:disabled {

@@ -42,6 +42,31 @@
         </svg>
         <span>Desafío</span>
       </RouterLink>
+
+      <RouterLink
+        to="/juego-desempate"
+        class="app-nav__link"
+        exact-active-class="is-active"
+      >
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M5 15c0-4 3-7 7-7s7 3 7 7" />
+          <path d="M8 15h8M12 8V4M9 4h6M4 19h16" />
+          <circle cx="12" cy="14" r="2" />
+        </svg>
+        <span>Juego de desempate</span>
+      </RouterLink>
+
+      <RouterLink
+        to="/ranking"
+        class="app-nav__link"
+        exact-active-class="is-active"
+      >
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M8 4h8v4a4 4 0 0 1-8 0z" />
+          <path d="M8 6H4v2a4 4 0 0 0 4 4M16 6h4v2a4 4 0 0 1-4 4M12 12v5M8 21h8M10 17h4v4h-4z" />
+        </svg>
+        <span>Tabla de posiciones</span>
+      </RouterLink>
     </nav>
 
     <div class="app-sidebar__footer">

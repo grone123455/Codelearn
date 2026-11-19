@@ -156,6 +156,7 @@ export async function obtenerSiguientePregunta(partidaId) {
 // RESPONDER PREGUNTA COMPETITIVA
 // ================================
 
+
 export async function responderPreguntaCompetitiva(
   partidaId,
   preguntaId,
@@ -192,14 +193,19 @@ export async function responderPreguntaCompetitiva(
     throw new Error(data.error)
   }
 
-  if (!data?.correcto || !data?.respondida) {
+  if (
+    !data?.correcto ||
+    !data?.respondida ||
+    typeof data.correcta !== "boolean"
+  ) {
     throw new Error(
-      "El servidor no confirmó correctamente el registro de la respuesta."
+      "El servidor no confirmó correctamente el registro y resultado de la respuesta."
     )
   }
 
-  return true
+  return data.correcta
 }
+
 
 // ================================
 // FINALIZAR PARTIDA COMPETITIVA
