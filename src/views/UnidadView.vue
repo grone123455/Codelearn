@@ -1,5 +1,4 @@
 
-
 <template>
   <section class="pagina">
     <button
@@ -9,25 +8,21 @@
       ← Volver al curso
     </button>
 
-    <!-- CARGANDO UNIDAD -->
     <div
       v-if="cargando"
       class="estado-pagina"
     >
       <h1>Cargando unidad...</h1>
-
       <p>
         Estamos obteniendo el contenido desde la base de datos.
       </p>
     </div>
 
-    <!-- ERROR AL CARGAR UNIDAD -->
     <div
       v-else-if="error"
       class="estado-pagina"
     >
       <h1>No se pudo cargar la unidad</h1>
-
       <p>
         Ocurrió un error al obtener la información desde la base de datos.
       </p>
@@ -40,7 +35,6 @@
       </button>
     </div>
 
-    <!-- UNIDAD -->
     <div
       v-else-if="unidad"
       class="contenido"
@@ -75,7 +69,6 @@
         </span>
       </div>
 
-      <!-- UNIDAD PUBLICADA -->
       <div
         v-if="unidad.estado === 'publicada'"
         class="lecciones"
@@ -85,38 +78,28 @@
             CONTENIDO
           </span>
 
-          <h2>
-            Lecciones
-          </h2>
+          <h2>Lecciones</h2>
 
           <p>
             Completá las lecciones para avanzar en la unidad.
           </p>
         </div>
 
-        <!-- CARGANDO LECCIONES Y ACTIVIDADES -->
         <div
           v-if="cargandoLecciones"
           class="sin-lecciones"
         >
-          <h2>
-            Cargando lecciones...
-          </h2>
-
+          <h2>Cargando lecciones...</h2>
           <p>
             Estamos obteniendo las lecciones y sus actividades.
           </p>
         </div>
 
-        <!-- ERROR AL CARGAR LECCIONES -->
         <div
           v-else-if="errorLecciones"
           class="sin-lecciones"
         >
-          <h2>
-            No se pudieron cargar las lecciones
-          </h2>
-
+          <h2>No se pudieron cargar las lecciones</h2>
           <p>
             Ocurrió un error al obtener el contenido.
           </p>
@@ -129,15 +112,11 @@
           </button>
         </div>
 
-        <!-- ERROR AL CARGAR ACTIVIDADES -->
         <div
           v-else-if="errorActividades"
           class="sin-lecciones"
         >
-          <h2>
-            No se pudieron cargar las actividades
-          </h2>
-
+          <h2>No se pudieron cargar las actividades</h2>
           <p>
             Ocurrió un error al obtener las actividades desde la base de datos.
           </p>
@@ -150,7 +129,6 @@
           </button>
         </div>
 
-        <!-- LECCIONES -->
         <div
           v-else-if="lecciones.length > 0"
           class="lista-lecciones"
@@ -205,7 +183,6 @@
                 {{ leccion.explicacion }}
               </p>
 
-              <!-- PROGRESO DE LA LECCIÓN -->
               <div
                 v-if="mejorResultado(leccion.id).total > 0"
                 class="progreso-leccion"
@@ -251,22 +228,17 @@
           </article>
         </div>
 
-        <!-- SIN LECCIONES -->
         <div
           v-else
           class="sin-lecciones"
         >
-          <h2>
-            No hay lecciones disponibles
-          </h2>
-
+          <h2>No hay lecciones disponibles</h2>
           <p>
             Todavía no hay contenido para esta unidad.
           </p>
         </div>
       </div>
 
-      <!-- UNIDAD BLOQUEADA -->
       <div
         v-else
         class="bloqueo"
@@ -275,9 +247,7 @@
           🔒
         </div>
 
-        <h2>
-          Unidad bloqueada
-        </h2>
+        <h2>Unidad bloqueada</h2>
 
         <p>
           Completá las unidades anteriores para desbloquear
@@ -293,14 +263,11 @@
       </div>
     </div>
 
-    <!-- UNIDAD NO ENCONTRADA -->
     <div
       v-else
       class="error"
     >
-      <h1>
-        Unidad no encontrada
-      </h1>
+      <h1>Unidad no encontrada</h1>
 
       <p>
         La unidad que estás buscando no existe o no está disponible.
@@ -316,11 +283,17 @@
   </section>
 </template>
 
-
-
 <script setup>
-import { onMounted, ref } from "vue"
-import { useRoute, useRouter } from "vue-router"
+import {
+  onMounted,
+  ref,
+  watch
+} from "vue"
+
+import {
+  useRoute,
+  useRouter
+} from "vue-router"
 
 import {
   obtenerUnidad,
@@ -440,9 +413,6 @@ async function cargarActividades() {
       )
 
       errorActividades.value = true
-
-      // No tratar un error de consulta como
-      // si la lección no tuviera actividades.
       return
     }
   }
@@ -472,8 +442,6 @@ async function cargarIntentos() {
         e
       )
 
-      // No asumir que la lección está aprobada
-      // si falla la consulta.
       intentosPorLeccion.value[
         leccion.id
       ] = []
@@ -605,7 +573,7 @@ function seleccionarLeccion(leccion) {
   }
 
   router.push(
-    `/cursos/javascript/leccion/${leccion.id}`
+    `/cursos/${route.params.cursoId}/leccion/${leccion.id}`
   )
 }
 
@@ -615,19 +583,27 @@ function seleccionarLeccion(leccion) {
 
 function volverAlCurso() {
   router.push(
-    "/cursos/javascript"
+    `/cursos/${route.params.cursoId}`
   )
 }
 
 // =====================================
-// INICIO
+// INICIO Y CAMBIOS DE RUTA
 // =====================================
 
 onMounted(() => {
   cargarUnidad()
 })
-</script>
 
+watch(
+  () => route.params.id,
+  (nuevoId, idAnterior) => {
+    if (nuevoId && nuevoId !== idAnterior) {
+      cargarUnidad()
+    }
+  }
+)
+</script>
 
 <style scoped>
 .pagina {

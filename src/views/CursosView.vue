@@ -1,3 +1,4 @@
+
 <template>
   <section class="pagina">
     <div class="encabezado">
@@ -66,6 +67,7 @@ async function cargarCursos() {
   try {
     cargando.value = true
     error.value = false
+
     cursos.value = await obtenerCursos()
   } catch (e) {
     console.error("Error al cargar los cursos:", e)
@@ -80,9 +82,15 @@ onMounted(() => {
 })
 
 function seleccionarCurso(curso) {
-  if (curso.id === "curso-js") {
-    router.push("/cursos/javascript")
+  const equivalencias = {
+    javascript: "curso-js",
+    html: "curso-html",
+    css: "curso-css"
   }
+
+  const cursoId = equivalencias[curso.id] || curso.id
+
+  router.push(`/cursos/${cursoId}`)
 }
 </script>
 

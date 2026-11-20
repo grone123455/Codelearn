@@ -28,7 +28,7 @@ export async function obtenerCurso(id) {
     .maybeSingle()
 
   if (error) {
-    console.error("Error al obtener curso:", error)
+    console.error("Error al obtener el curso:", error)
     throw error
   }
 
@@ -42,25 +42,18 @@ export async function obtenerCurso(id) {
 export async function obtenerUnidadesPorCurso(cursoId) {
   const { data, error } = await supabase
     .from("unidades")
-    .select(
-      "id, curso_id, orden, titulo, descripcion, estado"
-    )
+    .select("id, curso_id, orden, titulo, descripcion, estado")
     .eq("curso_id", cursoId)
-    .eq("estado", "publicada")
     .order("orden", {
       ascending: true
     })
 
   if (error) {
-    console.error(
-      "Error al obtener las unidades:",
-      error
-    )
-
+    console.error("Error al obtener las unidades:", error)
     throw error
   }
 
-  return data.map(unidad => ({
+  return (data || []).map(unidad => ({
     id: unidad.id,
     cursoId: unidad.curso_id,
     orden: unidad.orden,
@@ -73,19 +66,12 @@ export async function obtenerUnidadesPorCurso(cursoId) {
 export async function obtenerUnidad(id) {
   const { data, error } = await supabase
     .from("unidades")
-    .select(
-      "id, curso_id, orden, titulo, descripcion, estado"
-    )
+    .select("id, curso_id, orden, titulo, descripcion, estado")
     .eq("id", id)
-    .eq("estado", "publicada")
     .maybeSingle()
 
   if (error) {
-    console.error(
-      "Error al obtener la unidad:",
-      error
-    )
-
+    console.error("Error al obtener la unidad:", error)
     throw error
   }
 
@@ -107,29 +93,21 @@ export async function obtenerUnidad(id) {
 // LECCIONES
 // ================================
 
-export async function obtenerLeccionesPorUnidad(
-  unidadId
-) {
+export async function obtenerLeccionesPorUnidad(unidadId) {
   const { data, error } = await supabase
     .from("lecciones")
-    .select(
-      "id, unidad_id, orden, titulo, explicacion, codigo"
-    )
+    .select("id, unidad_id, orden, titulo, explicacion, codigo")
     .eq("unidad_id", unidadId)
     .order("orden", {
       ascending: true
     })
 
   if (error) {
-    console.error(
-      "Error al obtener las lecciones:",
-      error
-    )
-
+    console.error("Error al obtener las lecciones:", error)
     throw error
   }
 
-  return data.map(leccion => ({
+  return (data || []).map(leccion => ({
     id: leccion.id,
     unidadId: leccion.unidad_id,
     orden: leccion.orden,
@@ -142,18 +120,12 @@ export async function obtenerLeccionesPorUnidad(
 export async function obtenerLeccion(id) {
   const { data, error } = await supabase
     .from("lecciones")
-    .select(
-      "id, unidad_id, orden, titulo, explicacion, codigo"
-    )
+    .select("id, unidad_id, orden, titulo, explicacion, codigo")
     .eq("id", id)
     .maybeSingle()
 
   if (error) {
-    console.error(
-      "Error al obtener la lección:",
-      error
-    )
-
+    console.error("Error al obtener la lección:", error)
     throw error
   }
 
@@ -175,28 +147,20 @@ export async function obtenerLeccion(id) {
 // ACTIVIDADES
 // ================================
 
-export async function obtenerActividadesPorLeccion(
-  leccionId
-) {
+export async function obtenerActividadesPorLeccion(leccionId) {
   const {
     data: preguntas,
     error: errorPreguntas
   } = await supabase
     .from("preguntas")
-    .select(
-      "id, leccion_id, orden, enunciado, explicacion"
-    )
+    .select("id, leccion_id, orden, enunciado, explicacion")
     .eq("leccion_id", leccionId)
     .order("orden", {
       ascending: true
     })
 
   if (errorPreguntas) {
-    console.error(
-      "Error al obtener las preguntas:",
-      errorPreguntas
-    )
-
+    console.error("Error al obtener las preguntas:", errorPreguntas)
     throw errorPreguntas
   }
 
@@ -212,17 +176,11 @@ export async function obtenerActividadesPorLeccion(
       error: errorOpciones
     } = await supabase
       .from("opciones")
-      .select(
-        "id, pregunta_id, texto"
-      )
+      .select("id, pregunta_id, texto")
       .eq("pregunta_id", pregunta.id)
 
     if (errorOpciones) {
-      console.error(
-        "Error al obtener las opciones:",
-        errorOpciones
-      )
-
+      console.error("Error al obtener las opciones:", errorOpciones)
       throw errorOpciones
     }
 
@@ -247,18 +205,12 @@ export async function obtenerActividad(id) {
     error: errorPregunta
   } = await supabase
     .from("preguntas")
-    .select(
-      "id, leccion_id, orden, enunciado, explicacion"
-    )
+    .select("id, leccion_id, orden, enunciado, explicacion")
     .eq("id", id)
     .maybeSingle()
 
   if (errorPregunta) {
-    console.error(
-      "Error al obtener la actividad:",
-      errorPregunta
-    )
-
+    console.error("Error al obtener la actividad:", errorPregunta)
     throw errorPregunta
   }
 
@@ -271,17 +223,11 @@ export async function obtenerActividad(id) {
     error: errorOpciones
   } = await supabase
     .from("opciones")
-    .select(
-      "id, pregunta_id, texto"
-    )
+    .select("id, pregunta_id, texto")
     .eq("pregunta_id", id)
 
   if (errorOpciones) {
-    console.error(
-      "Error al obtener las opciones:",
-      errorOpciones
-    )
-
+    console.error("Error al obtener las opciones:", errorOpciones)
     throw errorOpciones
   }
 
@@ -306,11 +252,7 @@ export async function obtenerIntentosPorLeccion(leccionId) {
     await supabase.auth.getUser()
 
   if (usuarioError) {
-    console.error(
-      "Error al obtener el usuario:",
-      usuarioError
-    )
-
+    console.error("Error al obtener el usuario:", usuarioError)
     throw usuarioError
   }
 
@@ -320,7 +262,6 @@ export async function obtenerIntentosPorLeccion(leccionId) {
     return []
   }
 
-  // Obtener los intentos y sus resultados guardados.
   const { data: intentos, error: errorIntentos } =
     await supabase
       .from("intentos_leccion")
@@ -343,11 +284,7 @@ export async function obtenerIntentosPorLeccion(leccionId) {
       })
 
   if (errorIntentos) {
-    console.error(
-      "Error al obtener los intentos:",
-      errorIntentos
-    )
-
+    console.error("Error al obtener los intentos:", errorIntentos)
     throw errorIntentos
   }
 
@@ -355,39 +292,35 @@ export async function obtenerIntentosPorLeccion(leccionId) {
     return []
   }
 
-  // Obtener las respuestas correspondientes a esos intentos.
-  const idsIntentos = intentos.map(
-    intento => intento.id
-  )
+  const idsIntentos = intentos.map(intento => intento.id)
 
   const {
     data: respuestas,
     error: errorRespuestas
   } = await supabase
     .from("respuestas_intento")
-    .select(
-      "id, intento_id, pregunta_id, opcion_seleccionada_id, correcta, creado_en"
-    )
+    .select(`
+      id,
+      intento_id,
+      pregunta_id,
+      opcion_seleccionada_id,
+      correcta,
+      creado_en
+    `)
     .in("intento_id", idsIntentos)
     .order("creado_en", {
       ascending: true
     })
 
   if (errorRespuestas) {
-    console.error(
-      "Error al obtener las respuestas:",
-      errorRespuestas
-    )
-
+    console.error("Error al obtener las respuestas:", errorRespuestas)
     throw errorRespuestas
   }
 
-  // Asociar cada respuesta con su intento.
   return intentos.map(intento => ({
     ...intento,
     respuestas: (respuestas || []).filter(
-      respuesta =>
-        respuesta.intento_id === intento.id
+      respuesta => respuesta.intento_id === intento.id
     )
   }))
 }
@@ -401,11 +334,7 @@ export async function obtenerUltimoIntento() {
     await supabase.auth.getUser()
 
   if (usuarioError) {
-    console.error(
-      "Error al obtener el usuario:",
-      usuarioError
-    )
-
+    console.error("Error al obtener el usuario:", usuarioError)
     throw usuarioError
   }
 
@@ -438,11 +367,7 @@ export async function obtenerUltimoIntento() {
       .maybeSingle()
 
   if (intentoError) {
-    console.error(
-      "Error al obtener el último intento:",
-      intentoError
-    )
-
+    console.error("Error al obtener el último intento:", intentoError)
     throw intentoError
   }
 
@@ -455,20 +380,21 @@ export async function obtenerUltimoIntento() {
     error: respuestasError
   } = await supabase
     .from("respuestas_intento")
-    .select(
-      "id, intento_id, pregunta_id, opcion_seleccionada_id, correcta, creado_en"
-    )
+    .select(`
+      id,
+      intento_id,
+      pregunta_id,
+      opcion_seleccionada_id,
+      correcta,
+      creado_en
+    `)
     .eq("intento_id", intento.id)
     .order("creado_en", {
       ascending: true
     })
 
   if (respuestasError) {
-    console.error(
-      "Error al recuperar las respuestas:",
-      respuestasError
-    )
-
+    console.error("Error al recuperar las respuestas:", respuestasError)
     throw respuestasError
   }
 

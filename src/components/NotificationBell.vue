@@ -6,7 +6,7 @@
       type="button"
       aria-label="Notificaciones"
       :aria-expanded="abierto"
-      @click="abierto = !abierto"
+      @click="alternarPanel"
     >
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path
@@ -20,100 +20,102 @@
       </span>
     </button>
 
-    <section
-      v-if="abierto"
-      class="notification-panel"
-      aria-label="Lista de notificaciones"
-    >
-      <header class="notification-panel__header">
-        <div>
-          <h2>Notificaciones</h2>
-          <p>
-            {{ noLeidas }}
-            {{ noLeidas === 1 ? "pendiente" : "pendientes" }}
-          </p>
+    <Transition name="bubble">
+      <section
+        v-if="abierto"
+        class="notification-panel"
+        aria-label="Lista de notificaciones"
+      >
+        <header class="notification-panel__header">
+          <div>
+            <h2>Notificaciones</h2>
+            <p>
+              {{ noLeidas }}
+              {{ noLeidas === 1 ? "pendiente" : "pendientes" }}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            class="notification-panel__close"
+            aria-label="Cerrar notificaciones"
+            @click="abierto = false"
+          >
+            ×
+          </button>
+        </header>
+
+        <div v-if="cargando" class="notification-panel__state">
+          Cargando notificaciones...
         </div>
 
-        <button
-          type="button"
-          class="notification-panel__close"
-          aria-label="Cerrar notificaciones"
-          @click="abierto = false"
+        <div
+          v-else-if="error"
+          class="notification-panel__state notification-panel__state--error"
         >
-          ×
-        </button>
-      </header>
+          {{ error }}
+          <button type="button" @click="cargarNotificaciones">
+            Reintentar
+          </button>
+        </div>
 
-      <div v-if="cargando" class="notification-panel__state">
-        Cargando notificaciones...
-      </div>
-
-      <div
-        v-else-if="error"
-        class="notification-panel__state notification-panel__state--error"
-      >
-        {{ error }}
-        <button type="button" @click="cargarNotificaciones">
-          Reintentar
-        </button>
-      </div>
-
-      <div
-        v-else-if="notificaciones.length === 0"
-        class="notification-panel__state"
-      >
-        No tenés notificaciones por el momento.
-      </div>
-
-      <div v-else class="notification-panel__list">
-        <article
-          v-for="notificacion in notificaciones"
-          :key="notificacion.id"
-          class="notification-item"
-          :class="{ 'notification-item--unread': !notificacion.leida }"
+        <div
+          v-else-if="notificaciones.length === 0"
+          class="notification-panel__state"
         >
-          <span class="notification-item__dot"></span>
+          No tenés notificaciones por el momento.
+        </div>
 
-          <div class="notification-item__content">
-            <strong>{{ notificacion.titulo }}</strong>
-            <p>{{ notificacion.mensaje }}</p>
+        <div v-else class="notification-panel__list">
+          <article
+            v-for="notificacion in notificaciones"
+            :key="notificacion.id"
+            class="notification-item"
+            :class="{ 'notification-item--unread': !notificacion.leida }"
+          >
+            <span class="notification-item__dot"></span>
 
-            <time :datetime="notificacion.creado_en">
-              {{ formatearFecha(notificacion.creado_en) }}
-            </time>
+            <div class="notification-item__content">
+              <strong>{{ notificacion.titulo }}</strong>
+              <p>{{ notificacion.mensaje }}</p>
 
-            <button
-              v-if="esNotificacionDesempate(notificacion)"
-              type="button"
-              class="notification-item__read"
-              :disabled="marcandoId === notificacion.id"
-              @click="abrirNotificacion(notificacion)"
-            >
-              {{ textoAccion(notificacion) }}
-            </button>
+              <time :datetime="notificacion.creado_en">
+                {{ formatearFecha(notificacion.creado_en) }}
+              </time>
 
-            <button
-              v-else-if="!notificacion.leida"
-              type="button"
-              class="notification-item__read"
-              :disabled="marcandoId === notificacion.id"
-              @click="marcarComoLeida(notificacion)"
-            >
-              {{
-                marcandoId === notificacion.id
-                  ? "Guardando..."
-                  : "Marcar como leída"
-              }}
-            </button>
-          </div>
-        </article>
-      </div>
-    </section>
+              <button
+                v-if="esNotificacionDesempate(notificacion)"
+                type="button"
+                class="notification-item__read"
+                :disabled="marcandoId === notificacion.id"
+                @click="abrirNotificacion(notificacion)"
+              >
+                {{ textoAccion(notificacion) }}
+              </button>
+
+              <button
+                v-else-if="!notificacion.leida"
+                type="button"
+                class="notification-item__read"
+                :disabled="marcandoId === notificacion.id"
+                @click="marcarComoLeida(notificacion)"
+              >
+                {{
+                  marcandoId === notificacion.id
+                    ? "Guardando..."
+                    : "Marcar como leída"
+                }}
+              </button>
+            </div>
+          </article>
+        </div>
+      </section>
+    </Transition>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from "vue"
+import { computed, onMounted, onUnmounted, ref, watch } from "vue"
 import { useRouter } from "vue-router"
 
 import {
@@ -125,7 +127,34 @@ import { supabase } from "../services/supabase.js"
 
 const router = useRouter()
 
+const props = defineProps({
+  menuAbierto: {
+    type: Boolean,
+    default: false
+  }
+})
+
+const emit = defineEmits(["abierto-change"])
+
 const abierto = ref(false)
+
+watch(
+  () => props.menuAbierto,
+  (estaAbierto) => {
+    if (estaAbierto) {
+      abierto.value = false
+    }
+  }
+)
+
+function alternarPanel() {
+  if (!abierto.value) {
+    emit("abierto-change")
+  }
+
+  abierto.value = !abierto.value
+}
+
 const cargando = ref(false)
 const error = ref("")
 const notificaciones = ref([])
@@ -135,7 +164,7 @@ const noLeidas = computed(() =>
   notificaciones.value.filter(n => !n.leida).length
 )
 
-let intervalo = null
+let canalRealtime = null
 let authSubscription = null
 
 function esNotificacionDesempate(notificacion) {
@@ -195,12 +224,20 @@ async function abrirNotificacion(notificacion) {
 
   abierto.value = false
 
-  const nombreRuta = notificacion.tipo === "nuevo_desempate"
-    ? "juego-desempate"
-    : "resultado-desempate"
+  if (notificacion.tipo === "nuevo_desempate") {
+    router.push({
+      name: "juego-desempate",
+      query: {
+        modo: "competitivo",
+        desempate: notificacion.desempate_id
+      }
+    })
+
+    return
+  }
 
   router.push({
-    name: nombreRuta,
+    name: "resultado-desempate",
     query: {
       desempate: notificacion.desempate_id
     }
@@ -214,23 +251,68 @@ function formatearFecha(fecha) {
   }).format(new Date(fecha))
 }
 
-onMounted(() => {
-  cargarNotificaciones()
+async function configurarRealtime(usuario) {
+  if (canalRealtime) {
+    await supabase.removeChannel(canalRealtime)
+    canalRealtime = null
+  }
 
-  intervalo = window.setInterval(cargarNotificaciones, 60000)
+  if (!usuario || usuario.is_anonymous) {
+    notificaciones.value = []
+    return
+  }
 
-  const { data } = supabase.auth.onAuthStateChange(() => {
-    cargarNotificaciones()
+  canalRealtime = supabase
+    .channel(`notificaciones-${usuario.id}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "notificaciones",
+        filter: `usuario_id=eq.${usuario.id}`
+      },
+      () => {
+        cargarNotificaciones()
+      }
+    )
+    .subscribe((estado) => {
+      if (estado === "CHANNEL_ERROR") {
+        console.error("Error en la suscripción de notificaciones.")
+      }
+    })
+}
+
+onMounted(async () => {
+  const { data } = supabase.auth.onAuthStateChange((evento, session) => {
+    if (["SIGNED_IN", "SIGNED_OUT", "USER_UPDATED"].includes(evento)) {
+      Promise.resolve().then(async () => {
+        await configurarRealtime(session?.user)
+        await cargarNotificaciones()
+      })
+    }
   })
 
   authSubscription = data.subscription
-})
 
-onUnmounted(() => {
-  if (intervalo) {
-    window.clearInterval(intervalo)
+  const { data: sesion, error: errorSesion } =
+    await supabase.auth.getSession()
+
+  if (errorSesion) {
+    console.error("Error al obtener la sesión:", errorSesion)
+    return
   }
 
+  await configurarRealtime(sesion.session?.user)
+  await cargarNotificaciones()
+})
+
+onUnmounted(async () => {
   authSubscription?.unsubscribe()
+
+  if (canalRealtime) {
+    await supabase.removeChannel(canalRealtime)
+    canalRealtime = null
+  }
 })
 </script>

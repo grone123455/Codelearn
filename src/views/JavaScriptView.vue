@@ -1,3 +1,4 @@
+
 <template>
   <section class="pagina">
     <button
@@ -13,12 +14,11 @@
       </span>
 
       <h1>
-        JavaScript
+        {{ curso.nombre }}
       </h1>
 
       <p>
-        Aprendé los fundamentos de JavaScript mediante
-        lecciones y actividades prácticas.
+        {{ curso.descripcion }}
       </p>
     </div>
 
@@ -123,7 +123,8 @@ import {
 } from "vue"
 
 import {
-  useRouter
+  useRouter,
+  useRoute
 } from "vue-router"
 
 import UnidadCard from "../components/UnidadCard.vue"
@@ -135,6 +136,36 @@ import {
 } from "../services/datos.js"
 
 const router = useRouter()
+const route = useRoute()
+
+const cursos = {
+  "curso-js": {
+    nombre: "JavaScript",
+    descripcion:
+      "Aprendé los fundamentos de JavaScript desde cero mediante lecciones y actividades prácticas."
+  },
+
+  "curso-html": {
+    nombre: "HTML",
+    descripcion:
+      "Aprendé las bases de HTML y descubrí cómo construir la estructura de una página web."
+  },
+
+  "curso-css": {
+    nombre: "CSS",
+    descripcion:
+      "Aprendé a diseñar páginas web utilizando colores, estilos, tamaños y diferentes propiedades visuales."
+  }
+}
+
+const cursoId = computed(() => route.params.cursoId)
+
+const curso = computed(() => {
+  return cursos[cursoId.value] || {
+    nombre: "Curso no encontrado",
+    descripcion: "El curso solicitado no existe."
+  }
+})
 
 const unidadesOriginales = ref([])
 
@@ -151,9 +182,13 @@ async function cargarUnidades() {
     error.value = false
     cargando.value = true
 
+    if (!cursos[cursoId.value]) {
+      throw new Error("El curso solicitado no existe.")
+    }
+
     unidadesOriginales.value =
       await obtenerUnidadesPorCurso(
-        "curso-js"
+        cursoId.value
       )
 
     await cargarContenido()
@@ -175,7 +210,6 @@ function reintentar() {
 
 async function cargarContenido() {
   const leccionesMapa = {}
-
   const actividadesMapa = {}
 
   for (const unidad of unidadesOriginales.value) {
@@ -225,9 +259,7 @@ function obtenerResultados() {
   )
 }
 
-function leccionAprobada(
-  leccionId
-) {
+function leccionAprobada(leccionId) {
   const actividades =
     actividadesPorLeccion.value[
       leccionId
@@ -237,14 +269,12 @@ function leccionAprobada(
     return false
   }
 
-  const resultados =
-    obtenerResultados()
+  const resultados = obtenerResultados()
 
   const resultadosLeccion =
     resultados.filter(
       resultado =>
-        resultado.leccionId ===
-        leccionId
+        resultado.leccionId === leccionId
     )
 
   const correctas =
@@ -256,9 +286,7 @@ function leccionAprobada(
   return correctas >= 2
 }
 
-function unidadCompletada(
-  unidadId
-) {
+function unidadCompletada(unidadId) {
   const lecciones =
     leccionesPorUnidad.value[
       unidadId
@@ -270,15 +298,11 @@ function unidadCompletada(
 
   return lecciones.every(
     leccion =>
-      leccionAprobada(
-        leccion.id
-      )
+      leccionAprobada(leccion.id)
   )
 }
 
-function unidadDesbloqueada(
-  unidad
-) {
+function unidadDesbloqueada(unidad) {
   if (unidad.orden === 1) {
     return true
   }
@@ -286,8 +310,7 @@ function unidadDesbloqueada(
   const unidadAnterior =
     unidadesOriginales.value.find(
       unidadActual =>
-        unidadActual.orden ===
-        unidad.orden - 1
+        unidadActual.orden === unidad.orden - 1
     )
 
   if (!unidadAnterior) {
@@ -305,9 +328,7 @@ const unidades = computed(() => {
       return {
         ...unidad,
         estado:
-          unidadDesbloqueada(
-            unidad
-          )
+          unidadDesbloqueada(unidad)
             ? "publicada"
             : "bloqueada"
       }
@@ -315,18 +336,13 @@ const unidades = computed(() => {
   )
 })
 
-function seleccionarUnidad(
-  unidad
-) {
-  if (
-    unidad.estado ===
-    "bloqueada"
-  ) {
+function seleccionarUnidad(unidad) {
+  if (unidad.estado === "bloqueada") {
     return
   }
 
   router.push(
-    `/cursos/javascript/unidad/${unidad.id}`
+    `/cursos/${cursoId.value}/unidad/${unidad.id}`
   )
 }
 
@@ -338,28 +354,19 @@ function volverACursos() {
 <style scoped>
 .pagina {
   max-width: 1100px;
-
   margin: 0 auto;
-
   padding: 50px 7% 80px;
 }
 
 .volver {
   margin-bottom: 40px;
-
   padding: 8px 0;
-
   border: none;
-
   background: transparent;
-
   color: #94a3b8;
-
   font-size: 0.95rem;
   font-weight: 600;
-
   cursor: pointer;
-
   transition: 0.2s;
 }
 
@@ -369,88 +376,68 @@ function volverACursos() {
 
 .encabezado {
   max-width: 750px;
-
   margin-bottom: 35px;
 }
 
 .etiqueta {
   color: #22c55e;
-
   font-size: 0.75rem;
   font-weight: 700;
-
   letter-spacing: 2px;
 }
 
 h1 {
   margin: 12px 0 15px;
-
   color: #f8fafc;
-
   font-size: 3.2rem;
   line-height: 1.1;
 }
 
 .encabezado p {
   margin: 0;
-
   color: #94a3b8;
-
   font-size: 1.05rem;
   line-height: 1.8;
 }
 
 .progreso {
   margin-bottom: 60px;
-
   padding: 22px 25px;
-
   background: #1e293b;
-
   border: 1px solid #334155;
-
   border-radius: 14px;
 }
 
 .progreso-info {
   display: flex;
-
   align-items: center;
   justify-content: space-between;
-
   margin-bottom: 12px;
 }
 
 .progreso-info span {
   color: #94a3b8;
-
   font-size: 0.9rem;
   font-weight: 600;
 }
 
 .progreso-info strong {
   color: #22c55e;
-
   font-size: 0.9rem;
 }
 
 .barra {
   width: 100%;
   height: 8px;
-
   overflow: hidden;
-
   background: #0f172a;
-
   border-radius: 20px;
 }
 
 .barra-progreso {
   width: 0%;
   height: 100%;
-
   background: #22c55e;
-
   border-radius: 20px;
 }
 
@@ -460,69 +447,50 @@ h1 {
 
 .unidades-encabezado h2 {
   margin: 10px 0 8px;
-
   color: #f8fafc;
-
   font-size: 1.8rem;
 }
 
 .unidades-encabezado p {
   margin: 0;
-
   color: #94a3b8;
-
   font-size: 0.95rem;
 }
 
 .lista-unidades {
   display: flex;
-
   flex-direction: column;
-
   gap: 18px;
 }
 
 .sin-unidades {
   padding: 50px;
-
   text-align: center;
-
   background: #1e293b;
-
   border: 1px solid #334155;
-
   border-radius: 16px;
 }
 
 .sin-unidades h2 {
   margin: 0 0 10px;
-
   color: #f8fafc;
 }
 
 .sin-unidades p {
   margin: 0;
-
   color: #94a3b8;
 }
 
 .sin-unidades .boton {
   margin-top: 20px;
-
   padding: 12px 20px;
-
   border: none;
   border-radius: 10px;
-
   background: #22c55e;
-
   color: #0f172a;
-
   font-size: 0.9rem;
   font-weight: 700;
-
   cursor: pointer;
-
   transition: 0.2s;
 }
 
@@ -545,7 +513,6 @@ h1 {
 
   .progreso {
     margin-bottom: 45px;
-
     padding: 18px;
   }
 

@@ -1,5 +1,6 @@
 
 import { createRouter, createWebHistory } from "vue-router"
+
 import { supabase } from "../services/supabase.js"
 
 import InicioView from "../views/InicioView.vue"
@@ -59,17 +60,17 @@ const router = createRouter({
       component: CursosView
     },
     {
-      path: "/cursos/javascript",
-      name: "javascript",
+      path: "/cursos/:cursoId",
+      name: "curso",
       component: JavaScriptView
     },
     {
-      path: "/cursos/javascript/unidad/:id",
+      path: "/cursos/:cursoId/unidad/:id",
       name: "unidad",
       component: UnidadView
     },
     {
-      path: "/cursos/javascript/leccion/:id",
+      path: "/cursos/:cursoId/leccion/:id",
       name: "leccion",
       component: LeccionView
     },
@@ -122,7 +123,8 @@ router.beforeEach(async (to) => {
   }
 
   try {
-    const { data, error } = await supabase.auth.getSession()
+    const { data, error } =
+      await supabase.auth.getSession()
 
     if (error) throw error
 
@@ -132,10 +134,14 @@ router.beforeEach(async (to) => {
 
     return {
       name: "acceso",
-      query: { redirect: to.fullPath }
+      query: {
+        redirect: to.fullPath
+      }
     }
   } catch {
-    return { name: "acceso" }
+    return {
+      name: "acceso"
+    }
   }
 })
 

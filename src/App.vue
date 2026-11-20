@@ -1,18 +1,17 @@
 
 <template>
   <div :class="['app-shell', { 'app-shell--public': !showNavigation }]">
-    <AppNavbar v-if="showNavigation" />
-
     <div class="app-content">
       <header v-if="showNavigation" class="app-topbar">
+        <AppNavbar />
+
         <div class="app-topbar__breadcrumb" aria-label="Ubicación actual">
           <span>CodeLearn</span>
           <span class="app-topbar__separator" aria-hidden="true">/</span>
-      <strong>{{ pageTitle }}</strong>
-      </div>
+          <strong>{{ pageTitle }}</strong>
+        </div>
 
-            <NotificationBell />
-</header>
+      </header>
 
       <main class="app-route-content">
         <RouterView :key="$route.fullPath" />

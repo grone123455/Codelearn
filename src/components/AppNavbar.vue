@@ -1,95 +1,128 @@
 
 <template>
-  <aside class="app-sidebar" aria-label="Navegación del espacio de aprendizaje">
-    <RouterLink to="/" class="app-brand" aria-label="CodeLearn, ir al inicio">
+  <div class="app-navbar">
+    <RouterLink to="/" class="app-brand" aria-label="CodeLearn, inicio">
       <span class="app-brand__mark">
         <img :src="logo" alt="" />
       </span>
       <span class="app-brand__name">Code<span>Learn</span></span>
     </RouterLink>
 
-    <p class="app-sidebar__label">Aprendizaje</p>
+    <div class="app-navbar__actions">
+      <NotificationBell
+  :menu-abierto="menuAbierto"
+  @abierto-change="menuAbierto = false"
+/>
 
-    <nav class="app-nav" aria-label="Navegación principal">
-      <RouterLink to="/" class="app-nav__link" exact-active-class="is-active">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="m3.5 10 8.5-7 8.5 7v9.5a1 1 0 0 1-1 1h-5v-7h-5v7h-5a1 1 0 0 1-1-1z" />
-        </svg>
-        <span>Inicio</span>
-      </RouterLink>
+      <div class="app-navbar__menu">
+        <button
+          class="app-navbar__toggle"
+          type="button"
+          :aria-expanded="menuAbierto"
+          aria-controls="menu-navegacion"
+          @click="menuAbierto = !menuAbierto"
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              v-if="!menuAbierto"
+              d="M4 6h16M4 12h16M4 18h16"
+            />
+            <path v-else d="m6 6 12 12M18 6 6 18" />
+          </svg>
+          <span>Menú</span>
+        </button>
 
-      <RouterLink
-        to="/cursos"
-        class="app-nav__link"
-        :class="{
-          'is-active': ['cursos', 'javascript', 'unidad', 'leccion', 'actividad'].includes(route.name)
-        }"
-      >
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21z" />
-          <path d="M4 5.5v13A2.5 2.5 0 0 1 6.5 16H20M8 7h8M8 10h6" />
-        </svg>
-        <span>Cursos</span>
-      </RouterLink>
+        <Transition name="bubble">
+          <nav
+            v-if="menuAbierto"
+            id="menu-navegacion"
+            class="app-navbar__dropdown"
+            aria-label="Navegación principal"
+          >
+            <RouterLink
+              to="/"
+              class="app-navbar__link"
+              exact-active-class="is-active"
+              @click="cerrarMenu"
+            >
+              Inicio
+            </RouterLink>
 
-      <RouterLink
-        to="/desafio"
-        class="app-nav__link"
-        exact-active-class="is-active"
-      >
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />
-        </svg>
-        <span>Desafío</span>
-      </RouterLink>
+            <RouterLink
+              to="/cursos"
+              class="app-navbar__link"
+              :class="{
+                'is-active': [
+                  'cursos',
+                  'javascript',
+                  'unidad',
+                  'leccion',
+                  'actividad'
+                ].includes(route.name)
+              }"
+              @click="cerrarMenu"
+            >
+              Cursos
+            </RouterLink>
 
-      <RouterLink
-        to="/juego-desempate"
-        class="app-nav__link"
-        exact-active-class="is-active"
-      >
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M5 15c0-4 3-7 7-7s7 3 7 7" />
-          <path d="M8 15h8M12 8V4M9 4h6M4 19h16" />
-          <circle cx="12" cy="14" r="2" />
-        </svg>
-        <span>Juego de desempate</span>
-      </RouterLink>
+            <RouterLink
+              to="/desafio"
+              class="app-navbar__link"
+              exact-active-class="is-active"
+              @click="cerrarMenu"
+            >
+              Desafío
+            </RouterLink>
 
-      <RouterLink
-        to="/ranking"
-        class="app-nav__link"
-        exact-active-class="is-active"
-      >
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M8 4h8v4a4 4 0 0 1-8 0z" />
-          <path d="M8 6H4v2a4 4 0 0 0 4 4M16 6h4v2a4 4 0 0 1-4 4M12 12v5M8 21h8M10 17h4v4h-4z" />
-        </svg>
-        <span>Tabla de posiciones</span>
-      </RouterLink>
-    </nav>
+            <RouterLink
+              :to="{ name: 'juego-desempate', query: { modo: 'practica' } }"
+              class="app-navbar__link"
+              exact-active-class="is-active"
+              @click="cerrarMenu"
+            >
+              Juego de desempate
+            </RouterLink>
 
-    <div class="app-sidebar__footer">
-      <div class="sidebar-note">
-        <span class="sidebar-note__mark" aria-hidden="true">&lt;/&gt;</span>
-        <p>Aprendé haciendo.<br /><strong>Avanzá a tu ritmo.</strong></p>
+            <RouterLink
+              to="/ranking"
+              class="app-navbar__link"
+              exact-active-class="is-active"
+              @click="cerrarMenu"
+            >
+              Tabla de posiciones
+            </RouterLink>
+
+            <RouterLink
+              to="/perfil"
+              class="app-navbar__link"
+              exact-active-class="is-active"
+              @click="cerrarMenu"
+            >
+              Mi perfil
+            </RouterLink>
+          </nav>
+        </Transition>
       </div>
-
-      <RouterLink to="/perfil" class="sidebar-profile" exact-active-class="is-active">
-        <span class="sidebar-profile__avatar" aria-hidden="true">CL</span>
-        <span class="sidebar-profile__copy">
-          <strong>Mi espacio</strong>
-          <small>Cuenta y progreso</small>
-        </span>
-        <span class="sidebar-profile__arrow" aria-hidden="true">→</span>
-      </RouterLink>
     </div>
-  </aside>
+  </div>
 </template>
 
+
 <script setup>
+import { ref, watch } from "vue"
 import { useRoute } from "vue-router"
 import logo from "../assets/images/logo-codelearn.png"
+import NotificationBell from "./NotificationBell.vue"
 
 const route = useRoute()
+const menuAbierto = ref(false)
+
+function cerrarMenu() {
+  menuAbierto.value = false
+}
+
+watch(
+  () => route.fullPath,
+  cerrarMenu
+)
 </script>

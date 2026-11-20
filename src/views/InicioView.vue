@@ -1,3 +1,4 @@
+
 <template>
   <section class="pagina dashboard-home">
     <header class="dashboard-heading">
@@ -14,9 +15,6 @@
         <h2>Las ideas toman forma <span>cuando las programás.</span></h2>
         <p>Explorá JavaScript, practicá con actividades interactivas y construí tus conocimientos paso a paso.</p>
         <div class="acciones">
-          <button class="principal" @click="irAJavaScript">
-            Explorar JavaScript <span aria-hidden="true">→</span>
-          </button>
           <button class="secundario" @click="irACursos">Ver todos los cursos</button>
         </div>
       </div>
@@ -86,6 +84,6 @@ function irACursos() {
 }
 
 function irAJavaScript() {
-  router.push("/cursos/javascript")
+  router.push("/cursos/curso-js")
 }
 </script>

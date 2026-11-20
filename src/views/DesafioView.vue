@@ -1,4 +1,5 @@
 
+
 <script setup>
 import { ref, onUnmounted } from "vue"
 import { RouterLink } from "vue-router"
@@ -28,6 +29,7 @@ const mostrarConfirmacionAbandono = ref(false)
 const tiempoTranscurrido = ref(0)
 
 let intervaloCronometro = null
+let intervaloCooldown = null
 let tokenSesion = null
 let partidaActivaServidor = false
 let solicitudCierreEnviada = false
@@ -64,6 +66,58 @@ function detenerCronometro() {
     clearInterval(intervaloCronometro)
     intervaloCronometro = null
   }
+}
+
+function detenerCooldown() {
+  if (intervaloCooldown) {
+    clearInterval(intervaloCooldown)
+    intervaloCooldown = null
+  }
+}
+
+function iniciarContadorCooldown(cooldownHasta) {
+  detenerCooldown()
+
+  const fechaFinalizacion = new Date(cooldownHasta).getTime()
+
+  if (!Number.isFinite(fechaFinalizacion)) {
+    return false
+  }
+
+  function actualizarCooldown() {
+    const segundosRestantes = Math.max(
+      0,
+      Math.ceil((fechaFinalizacion - Date.now()) / 1000)
+    )
+
+    if (segundosRestantes === 0) {
+      mensajeError.value = "Ya podés iniciar otro desafío."
+      detenerCooldown()
+      return
+    }
+
+    const minutos = Math.floor(segundosRestantes / 60)
+    const segundos = segundosRestantes % 60
+
+    if (minutos > 0) {
+      mensajeError.value =
+        `Te faltan ${minutos} ${minutos === 1 ? "minuto" : "minutos"} y ` +
+        `${segundos} ${segundos === 1 ? "segundo" : "segundos"} ` +
+        "para poder iniciar otro desafío."
+    } else {
+      mensajeError.value =
+        `Te faltan ${segundos} ${segundos === 1 ? "segundo" : "segundos"} ` +
+        "para poder iniciar otro desafío."
+    }
+  }
+
+  actualizarCooldown()
+
+  if (Date.now() < fechaFinalizacion) {
+    intervaloCooldown = setInterval(actualizarCooldown, 1000)
+  }
+
+  return true
 }
 
 function finalizarAlCerrar() {
@@ -172,8 +226,22 @@ async function iniciarPartida() {
   } catch (error) {
     console.error("Error al iniciar el desafío:", error)
 
-    mensajeError.value =
-      error.message || "No se pudo iniciar el desafío."
+    if (
+      error.codigo === "COOLDOWN_ACTIVO" &&
+      error.cooldownHasta
+    ) {
+      const contadorIniciado = iniciarContadorCooldown(
+        error.cooldownHasta
+      )
+
+      if (!contadorIniciado) {
+        mensajeError.value =
+          error.message || "No se pudo iniciar el desafío."
+      }
+    } else {
+      mensajeError.value =
+        error.message || "No se pudo iniciar el desafío."
+    }
 
     estado.value = "inicio"
   } finally {
@@ -348,10 +416,12 @@ function volverAlInicio() {
 
 onUnmounted(() => {
   detenerCronometro()
+  detenerCooldown()
   window.removeEventListener("pagehide", finalizarAlCerrar)
   authListener.subscription.unsubscribe()
 })
 </script>
+
 
 <template>
   <section class="pagina desafio">

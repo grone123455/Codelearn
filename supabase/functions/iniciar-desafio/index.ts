@@ -70,7 +70,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Iniciar la partida y asignar el grupo correspondiente.
     const { data, error } = await ctx.supabase.rpc(
       "iniciar_desafio_competitivo",
       {
@@ -80,6 +79,17 @@ Deno.serve(async (req) => {
 
     if (error) {
       console.error("Error al iniciar el desafío:", error);
+
+      if (error.message === "COOLDOWN_ACTIVO" && error.details) {
+        return responder(
+          {
+            codigo: "COOLDOWN_ACTIVO",
+            cooldownHasta: error.details,
+            error: "Todavía estás dentro del período de espera.",
+          },
+          400,
+        );
+      }
 
       return responder(
         { error: error.message || "No se pudo iniciar el desafío." },

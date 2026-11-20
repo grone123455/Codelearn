@@ -1,4 +1,4 @@
-```vue
+
 <template>
   <section class="pagina">
     <button
@@ -69,7 +69,7 @@
           </span>
 
           <span>
-            JavaScript
+            {{ nombreLenguaje }}
           </span>
         </div>
 
@@ -182,8 +182,17 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from "vue"
-import { useRoute, useRouter } from "vue-router"
+import {
+  computed,
+  onMounted,
+  ref,
+  watch
+} from "vue"
+
+import {
+  useRoute,
+  useRouter
+} from "vue-router"
 
 import {
   obtenerLeccion,
@@ -203,6 +212,20 @@ const cargandoActividades = ref(false)
 const errorActividades = ref(false)
 
 // =====================================
+// LENGUAJE DEL CURSO
+// =====================================
+
+const nombreLenguaje = computed(() => {
+  const lenguajes = {
+    "curso-js": "JavaScript",
+    "curso-html": "HTML",
+    "curso-css": "CSS"
+  }
+
+  return lenguajes[route.params.cursoId] || "Código"
+})
+
+// =====================================
 // CARGAR LECCIÓN
 // =====================================
 
@@ -211,10 +234,12 @@ async function cargarLeccion() {
     cargando.value = true
     error.value = false
 
-    const resultado =
-      await obtenerLeccion(
-        route.params.id
-      )
+    leccion.value = null
+    actividadesLeccion.value = []
+
+    const resultado = await obtenerLeccion(
+      route.params.id
+    )
 
     leccion.value = resultado
 
@@ -293,7 +318,7 @@ function volverAUnidad() {
   }
 
   router.push(
-    `/cursos/javascript/unidad/${leccion.value.unidadId}`
+    `/cursos/${route.params.cursoId}/unidad/${leccion.value.unidadId}`
   )
 }
 
@@ -303,44 +328,44 @@ function volverAUnidad() {
 
 function volverAlCurso() {
   router.push(
-    "/cursos/javascript"
+    `/cursos/${route.params.cursoId}`
   )
 }
 
 // =====================================
-// INICIO
+// INICIO Y CAMBIOS DE RUTA
 // =====================================
 
 onMounted(() => {
   cargarLeccion()
 })
+
+watch(
+  () => route.params.id,
+  (nuevoId, anteriorId) => {
+    if (nuevoId && nuevoId !== anteriorId) {
+      cargarLeccion()
+    }
+  }
+)
 </script>
 
 <style scoped>
 .pagina {
   max-width: 900px;
-
   margin: 0 auto;
-
   padding: 50px 7% 80px;
 }
 
 .volver {
   margin-bottom: 40px;
-
   padding: 8px 0;
-
   border: none;
-
   background: transparent;
-
   color: #94a3b8;
-
   font-size: 0.95rem;
   font-weight: 600;
-
   cursor: pointer;
-
   transition: 0.2s;
 }
 
@@ -354,73 +379,54 @@ onMounted(() => {
 
 .etiqueta {
   color: #22c55e;
-
   font-size: 0.75rem;
   font-weight: 700;
-
   letter-spacing: 2px;
 }
 
 h1 {
   margin: 12px 0 18px;
-
   color: #f8fafc;
-
   font-size: 3rem;
   line-height: 1.15;
 }
 
 .explicacion {
   margin: 0;
-
   color: #94a3b8;
-
   font-size: 1.05rem;
   line-height: 1.9;
 }
 
 .ejemplo {
   margin-top: 40px;
-
   overflow: hidden;
-
   background: #020617;
-
   border: 1px solid #1e293b;
   border-radius: 15px;
 }
 
 .ejemplo-cabecera {
   display: flex;
-
   align-items: center;
   justify-content: space-between;
-
   padding: 12px 18px;
-
   background: #1e293b;
-
   color: #94a3b8;
-
   font-size: 0.7rem;
   font-weight: 700;
-
   letter-spacing: 1px;
 }
 
 pre {
   margin: 0;
-
   padding: 25px;
-
   overflow-x: auto;
 }
 
 code {
   color: #22c55e;
-
   font-family: "Courier New", monospace;
-
   font-size: 0.95rem;
   line-height: 1.8;
 }
@@ -435,87 +441,62 @@ code {
 
 .actividades-encabezado h2 {
   margin: 10px 0 8px;
-
   color: #f8fafc;
-
   font-size: 1.8rem;
 }
 
 .actividades-encabezado p {
   margin: 0;
-
   color: #94a3b8;
-
   font-size: 0.95rem;
 }
 
 .info-card {
   display: flex;
-
   align-items: flex-start;
-
   gap: 15px;
-
   padding: 20px;
-
   background: #1e293b;
-
   border: 1px solid #334155;
   border-radius: 14px;
 }
 
 .info-icono {
   flex-shrink: 0;
-
   width: 38px;
   height: 38px;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   background: rgba(34, 197, 94, 0.12);
-
   border-radius: 9px;
-
   color: #22c55e;
-
   font-weight: 800;
 }
 
 .info-card h3 {
   margin: 0 0 6px;
-
   color: #f8fafc;
-
   font-size: 1rem;
 }
 
 .info-card p {
   margin: 0;
-
   color: #94a3b8;
-
   font-size: 0.9rem;
   line-height: 1.6;
 }
 
 .comenzar {
   margin-top: 22px;
-
   padding: 13px 21px;
-
   border: none;
   border-radius: 10px;
-
   background: #22c55e;
   color: #0f172a;
-
   font-size: 0.9rem;
   font-weight: 700;
-
   cursor: pointer;
-
   transition: 0.2s;
 }
 
@@ -525,24 +506,19 @@ code {
 
 .sin-actividades {
   margin-top: 22px;
-
   padding: 25px;
-
   background: #1e293b;
-
   border: 1px solid #334155;
   border-radius: 14px;
 }
 
 .sin-actividades p {
   margin: 0;
-
   color: #94a3b8;
 }
 
 .error {
   padding: 80px 20px;
-
   text-align: center;
 }
 
@@ -552,13 +528,11 @@ code {
 
 .error p {
   margin: 0 0 20px;
-
   color: #94a3b8;
 }
 
 .estado-pagina {
   padding: 80px 20px;
-
   text-align: center;
 }
 
@@ -568,7 +542,6 @@ code {
 
 .estado-pagina p {
   margin: 0 0 25px;
-
   color: #94a3b8;
 }
 

@@ -1,3 +1,4 @@
+
 <template>
   <main class="pagina">
     <section v-if="cargando" class="estado-pagina">
@@ -8,6 +9,7 @@
     <section v-else-if="error" class="estado-pagina">
       <h1>No se pudieron cargar los resultados</h1>
       <p>Ocurrió un problema al recuperar tu intento. Volvé a intentarlo.</p>
+
       <button class="principal" @click="cargarResultados">
         Reintentar
       </button>
@@ -16,6 +18,7 @@
     <section v-else-if="!leccionId" class="estado-pagina">
       <h1>No hay resultados para mostrar</h1>
       <p>Completá una actividad para consultar tus resultados.</p>
+
       <button class="principal" @click="volverACursos">
         Volver a cursos
       </button>
@@ -84,6 +87,7 @@
 
       <div class="regla">
         <strong>¿Cómo se aprueba?</strong>
+
         <p>
           Necesitás responder correctamente al menos 2 de cada 3 actividades
           para aprobar la lección.
@@ -104,11 +108,18 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import {
+  ref,
+  computed,
+  onMounted
+} from 'vue'
+
 import { useRouter } from 'vue-router'
+
 import {
   obtenerActividadesPorLeccion,
   obtenerLeccion,
+  obtenerUnidad,
   obtenerIntentosPorLeccion,
   obtenerUltimoIntento
 } from '../services/datos'
@@ -116,6 +127,9 @@ import {
 const router = useRouter()
 
 const leccion = ref(null)
+const unidad = ref(null)
+const cursoId = ref(null)
+
 const actividades = ref([])
 const respuestasIntento = ref([])
 const intentoActual = ref(null)
@@ -124,41 +138,65 @@ const cargando = ref(true)
 const error = ref(false)
 const leccionId = ref(null)
 
+// =====================================
+// RESULTADOS VÁLIDOS
+// =====================================
+
 const resultadosValidos = computed(() => {
   const preguntasDeLaLeccion = new Set(
-    actividades.value.map((actividad) => actividad.id)
+    actividades.value.map(actividad => actividad.id)
   )
 
-  return respuestasIntento.value.filter((respuesta) =>
+  return respuestasIntento.value.filter(respuesta =>
     preguntasDeLaLeccion.has(respuesta.pregunta_id)
   )
 })
+
+// =====================================
+// ESTADÍSTICAS
+// =====================================
 
 const total = computed(() => actividades.value.length)
 
 const respondidas = computed(() => resultadosValidos.value.length)
 
 const correctas = computed(
-  () => resultadosValidos.value.filter((respuesta) => respuesta.correcta).length
+  () => resultadosValidos.value.filter(
+    respuesta => respuesta.correcta
+  ).length
 )
 
-const incorrectas = computed(() => respondidas.value - correctas.value)
+const incorrectas = computed(
+  () => respondidas.value - correctas.value
+)
 
 const completa = computed(
   () => total.value > 0 && respondidas.value >= total.value
 )
 
 const porcentaje = computed(() => {
-  if (respondidas.value === 0) return 0
+  if (respondidas.value === 0 || total.value === 0) {
+    return 0
+  }
 
-  return Math.round((correctas.value / total.value) * 100)
+  return Math.round(
+    (correctas.value / total.value) * 100
+  )
 })
 
 const aprobado = computed(() => {
-  if (!completa.value || total.value === 0) return false
+  if (!completa.value || total.value === 0) {
+    return false
+  }
 
-  return correctas.value >= Math.ceil((total.value * 2) / 3)
+  return correctas.value >= Math.ceil(
+    (total.value * 2) / 3
+  )
 })
+
+// =====================================
+// MENSAJE
+// =====================================
 
 const mensaje = computed(() => {
   if (!completa.value) {
@@ -172,10 +210,47 @@ const mensaje = computed(() => {
   return 'Todavía no alcanzaste el puntaje necesario. Podés volver a intentarlo para mejorar tu resultado.'
 })
 
+// =====================================
+// IDENTIFICAR CURSO Y UNIDAD
+// =====================================
+
+async function cargarDatosDeNavegacion(leccionResultado) {
+  unidad.value = null
+  cursoId.value = null
+
+  if (!leccionResultado) {
+    return
+  }
+
+  const idUnidad =
+    leccionResultado.unidadId ||
+    leccionResultado.unidad_id
+
+  if (!idUnidad) {
+    return
+  }
+
+  const unidadResultado = await obtenerUnidad(idUnidad)
+
+  unidad.value = unidadResultado
+
+  if (unidadResultado) {
+    cursoId.value = unidadResultado.cursoId
+  }
+}
+
+// =====================================
+// CARGAR RESULTADOS
+// =====================================
+
 async function cargarResultados() {
   cargando.value = true
   error.value = false
+
   leccion.value = null
+  unidad.value = null
+  cursoId.value = null
+
   actividades.value = []
   respuestasIntento.value = []
   intentoActual.value = null
@@ -191,24 +266,32 @@ async function cargarResultados() {
 
     if (ultimoIntentoGuardado) {
       try {
-        const datosGuardados = JSON.parse(ultimoIntentoGuardado)
+        const datosGuardados = JSON.parse(
+          ultimoIntentoGuardado
+        )
 
-        if (datosGuardados.intentoId && datosGuardados.leccionId) {
+        if (
+          datosGuardados.intentoId &&
+          datosGuardados.leccionId
+        ) {
           const intentos = await obtenerIntentosPorLeccion(
             datosGuardados.leccionId
           )
 
-          intento =
-            intentos.find(
-              (item) => item.id === datosGuardados.intentoId
-            ) || null
+          intento = intentos.find(
+            item => item.id === datosGuardados.intentoId
+          ) || null
         }
       } catch (e) {
-        console.error('No se pudo recuperar el intento reciente:', e)
+        console.error(
+          'No se pudo recuperar el intento reciente:',
+          e
+        )
       }
     }
 
-    // Si no encontramos el intento reciente, consultamos el último del usuario.
+    // Si no encontramos el intento reciente,
+    // consultamos el último del usuario.
     if (!intento) {
       intento = await obtenerUltimoIntento()
     }
@@ -222,35 +305,72 @@ async function cargarResultados() {
 
     respuestasIntento.value = intento.respuestas || []
 
-    leccion.value = await obtenerLeccion(intento.leccion_id)
+    leccion.value = await obtenerLeccion(
+      intento.leccion_id
+    )
 
     actividades.value =
-      (await obtenerActividadesPorLeccion(intento.leccion_id)) || []
+      (await obtenerActividadesPorLeccion(
+        intento.leccion_id
+      )) || []
+
+    // Recuperar la unidad y el curso correspondientes.
+    await cargarDatosDeNavegacion(leccion.value)
+
   } catch (e) {
-    console.error('Error al cargar los resultados:', e)
+    console.error(
+      'Error al cargar los resultados:',
+      e
+    )
+
     error.value = true
   } finally {
     cargando.value = false
   }
 }
 
-function volverAUnidad() {
-  if (!leccion.value) return
+// =====================================
+// VOLVER A LA UNIDAD
+// =====================================
 
-  router.push(`/cursos/javascript/unidad/${leccion.value.unidadId || leccion.value.unidad_id}`)
+function volverAUnidad() {
+  if (!leccion.value || !unidad.value || !cursoId.value) {
+    volverACursos()
+    return
+  }
+
+  router.push(
+    `/cursos/${cursoId.value}/unidad/${unidad.value.id}`
+  )
 }
+
+// =====================================
+// VOLVER A INTENTAR
+// =====================================
 
 function volverAIntentar() {
-  if (!leccionId.value) return
+  if (!leccionId.value) {
+    return
+  }
 
   if (actividades.value.length > 0) {
-    router.push(`/actividad/${actividades.value[0].id}`)
+    router.push(
+      `/actividad/${actividades.value[0].id}`
+    )
   }
 }
+
+// =====================================
+// VOLVER A CURSOS
+// =====================================
 
 function volverACursos() {
   router.push('/cursos')
 }
+
+// =====================================
+// INICIO
+// =====================================
 
 onMounted(cargarResultados)
 </script>

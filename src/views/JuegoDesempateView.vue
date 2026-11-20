@@ -1,4 +1,5 @@
 
+
 <template>
   <section class="monkey-game">
     <header class="game-header">
@@ -123,6 +124,14 @@
               </template>
             </template>
 
+            <button
+              v-if="!modoCompetitivo"
+              class="game-button"
+              @click="volverAJugar"
+            >
+              Volver a jugar
+            </button>
+
             <p class="return-hint">
               Podés volver a CodeLearn desde el menú.
             </p>
@@ -179,6 +188,7 @@
   </section>
 </template>
 
+
 <script setup>
 import { ref, onMounted, onUnmounted } from "vue"
 import { useRoute } from "vue-router"
@@ -196,16 +206,43 @@ import saltarSrc from "../assets/monkey-run/saltar/spritesheet.png"
 import deslizarSrc from "../assets/monkey-run/deslizar/spritesheet.png"
 import danioSrc from "../assets/monkey-run/danio/spritesheet.png"
 import derrotaSrc from "../assets/monkey-run/derrota/spritesheet.png"
+import robotSrc from "../assets/monkey-run/robot/idle_izquierda.png"
+import robotVirusSrc from "../assets/monkey-run/robot/virus.png"
+import fondoSrc from "../assets/monkey-run/fondo/selva_tecnologica.png"
+import bananaVerdeSrc from "../assets/monkey-run/bananas/banana_verde.png"
+import bananaAzulSrc from "../assets/monkey-run/bananas/banana_azul.png"
+import bananaVioletaSrc from "../assets/monkey-run/bananas/banana_violeta.png"
+import bananaDoradaSrc from "../assets/monkey-run/bananas/banana_dorada.png"
 
 const route = useRoute()
 const canvas = ref(null)
 
-const desempateId = route.query.desempate || null
-const modoCompetitivo = ref(Boolean(desempateId))
+// El modo debe estar definido explícitamente en la URL.
+const modo = route.query.modo
+const modoValido = modo === "practica" || modo === "competitivo"
+
+const modoCompetitivo = ref(modo === "competitivo")
+
+// En modo práctica se ignora cualquier identificador de desempate.
+const desempateId = modoCompetitivo.value
+  ? typeof route.query.desempate === "string"
+    ? route.query.desempate
+    : null
+  : null
 
 const enfrentamiento = ref(null)
-const cargandoEnfrentamiento = ref(Boolean(desempateId))
-const errorEnfrentamiento = ref("")
+
+const cargandoEnfrentamiento = ref(
+  modoCompetitivo.value && Boolean(desempateId)
+)
+
+const errorEnfrentamiento = ref(
+  !modoValido
+    ? "El modo de juego no es válido. Accedé desde el menú o desde una notificación."
+    : modoCompetitivo.value && !desempateId
+      ? "Falta el identificador del enfrentamiento."
+      : ""
+)
 
 const resultadoGuardado = ref(false)
 const guardandoResultado = ref(false)
@@ -231,6 +268,18 @@ const animaciones = {
   deslizar: { src: deslizarSrc, cuadros: 2, ancho: 256, alto: 224 },
   danio: { src: danioSrc, cuadros: 3, ancho: 256, alto: 224 },
   derrota: { src: derrotaSrc, cuadros: 3, ancho: 256, alto: 224 }
+}
+
+const animacionRobot = {
+  src: robotSrc,
+  cuadros: 7,
+  ancho: 110,
+  alto: 416,
+  recorteX: 15,
+  recorteY: 46,
+  recorteAncho: 85,
+  recorteAlto: 325,
+  fps: 8
 }
 
 let ctx
@@ -278,7 +327,7 @@ const coloresBananas = [
 
 // Validar el acceso al enfrentamiento competitivo.
 async function cargarEnfrentamiento() {
-  if (!desempateId) return
+  if (!modoCompetitivo.value || !desempateId) return
 
   try {
     cargandoEnfrentamiento.value = true
@@ -344,7 +393,84 @@ function cargarImagenes() {
     })
   })
 
-  return Promise.all(promesas)
+  const promesaRobot = new Promise((resolve) => {
+    const imagen = new Image()
+
+    imagen.onload = () => {
+      imagenes.robot = imagen
+      resolve()
+    }
+
+    imagen.onerror = () => {
+      console.error("No se pudo cargar el spritesheet del robot")
+      resolve()
+    }
+
+    imagen.src = animacionRobot.src
+  })
+
+  const promesaRobotVirus = new Promise((resolve) => {
+    const imagen = new Image()
+
+    imagen.onload = () => {
+      imagenes.robotVirus = imagen
+      resolve()
+    }
+
+    imagen.onerror = () => {
+      console.error("No se pudo cargar el robot virus")
+      resolve()
+    }
+
+    imagen.src = robotVirusSrc
+  })
+
+  const promesaFondo = new Promise((resolve) => {
+    const imagen = new Image()
+
+    imagen.onload = () => {
+      imagenes.fondo = imagen
+      resolve()
+    }
+
+    imagen.onerror = () => {
+      console.error("No se pudo cargar el fondo de la selva tecnológica")
+      resolve()
+    }
+
+    imagen.src = fondoSrc
+  })
+
+  const promesasBananas = [
+    ["bananaVerde", bananaVerdeSrc],
+    ["bananaAzul", bananaAzulSrc],
+    ["bananaVioleta", bananaVioletaSrc],
+    ["bananaDorada", bananaDoradaSrc]
+  ].map(([nombre, src]) => {
+    return new Promise((resolve) => {
+      const imagen = new Image()
+
+      imagen.onload = () => {
+        imagenes[nombre] = imagen
+        resolve()
+      }
+
+      imagen.onerror = () => {
+        console.error(`No se pudo cargar la imagen: ${nombre}`)
+        resolve()
+      }
+
+      imagen.src = src
+    })
+  })
+
+  return Promise.all([
+    ...promesas,
+    promesaRobot,
+    promesaRobotVirus,
+    promesaFondo,
+    ...promesasBananas
+  ])
 }
 
 function reiniciarEstado() {
@@ -409,6 +535,24 @@ async function iniciarJuego() {
     iniciandoIntento.value = false
   }
 }
+
+
+// Reiniciar la partida únicamente en modo práctica.
+function volverAJugar() {
+  if (
+    modoCompetitivo.value ||
+    estado.value !== "terminado" ||
+    cargando
+  ) return
+
+  reiniciarEstado()
+
+  estado.value = "jugando"
+
+  ultimoFrame = performance.now()
+  frameId = requestAnimationFrame(actualizar)
+}
+
 
 // Comprobar si Supabase ya registró el resultado.
 // Esto evita duplicar el envío si se perdió la respuesta de la primera RPC.
@@ -571,20 +715,26 @@ function actualizarJugador(dt) {
 }
 
 function crearObstaculo() {
-  const tipos = [
-    { ancho: 54, alto: 65, tipo: "bug" },
-    { ancho: 70, alto: 45, tipo: "error" },
-    { ancho: 48, alto: 85, tipo: "virus" }
-  ]
+  const esError = Math.random() < 0.5
 
-  const tipo = tipos[Math.floor(Math.random() * tipos.length)]
+  const obstaculo = esError
+    ? {
+        ancho: 35,
+        alto: 95,
+        tipo: "error"
+      }
+    : {
+        ancho: 21,
+        alto: 95,
+        tipo: "robot"
+      }
 
   obstaculos.push({
     x: 1000,
-    y: ALTURA_SUELO - tipo.alto,
-    ancho: tipo.ancho,
-    alto: tipo.alto,
-    tipo: tipo.tipo
+    y: ALTURA_SUELO - obstaculo.alto,
+    ...obstaculo,
+    frame: 0,
+    tiempoAnimacion: 0
   })
 }
 
@@ -737,6 +887,14 @@ function actualizarPartida(dt) {
 
   obstaculos.forEach((obstaculo) => {
     obstaculo.x -= velocidad * dt
+
+    if (obstaculo.tipo === "robot") {
+      obstaculo.tiempoAnimacion += dt
+
+      obstaculo.frame = Math.floor(
+        obstaculo.tiempoAnimacion * animacionRobot.fps
+      ) % animacionRobot.cuadros
+    }
   })
 
   bananas.forEach((banana) => {
@@ -758,43 +916,48 @@ function actualizarPartida(dt) {
 }
 
 function dibujarFondo() {
-  const gradiente = ctx.createLinearGradient(0, 0, 0, 420)
+  const imagen = imagenes.fondo
 
-  gradiente.addColorStop(0, "#071c25")
-  gradiente.addColorStop(1, "#102d29")
+  if (imagen) {
+    const escala = Math.max(
+      960 / imagen.width,
+      420 / imagen.height
+    )
 
-  ctx.fillStyle = gradiente
-  ctx.fillRect(0, 0, 960, 420)
+    const ancho = imagen.width * escala
+    const alto = imagen.height * escala
 
-  for (let i = 0; i < 24; i++) {
-    const x = (i * 83 - sueloOffset * 0.25 + 1200) % 1000
-    const y = 35 + (i * 47) % 230
+    const x = (960 - ancho) / 2
+    const y = (420 - alto) / 2
 
-    ctx.fillStyle = "rgba(82, 220, 151, 0.12)"
-    ctx.fillRect(x, y, 2, 28)
+    ctx.drawImage(imagen, x, y, ancho, alto)
+
+    // Oscurecimiento suave para mejorar la visibilidad
+    // de los personajes y obstáculos.
+    ctx.fillStyle = "rgba(3, 15, 20, 0.18)"
+    ctx.fillRect(0, 0, 960, 420)
+  } else {
+    ctx.fillStyle = "#102d29"
+    ctx.fillRect(0, 0, 960, 420)
   }
 
-  ctx.strokeStyle = "rgba(91, 234, 153, 0.12)"
-  ctx.lineWidth = 1
-
-  for (let x = -80; x < 1000; x += 80) {
-    const posicion = x - sueloOffset
-
-    ctx.beginPath()
-    ctx.moveTo(posicion, ALTURA_SUELO)
-    ctx.lineTo(posicion + 40, 420)
-    ctx.stroke()
-  }
-
+  // Suelo
   ctx.fillStyle = "#173b32"
   ctx.fillRect(0, ALTURA_SUELO, 960, 80)
 
+  // Borde superior del suelo
   ctx.fillStyle = "#45db91"
   ctx.fillRect(0, ALTURA_SUELO, 960, 3)
 
+  // Detalles del suelo en movimiento
   for (let x = -80; x < 1000; x += 80) {
     ctx.fillStyle = "rgba(76, 225, 143, 0.3)"
-    ctx.fillRect(x - sueloOffset, ALTURA_SUELO + 18, 32, 3)
+    ctx.fillRect(
+      x - sueloOffset,
+      ALTURA_SUELO + 18,
+      32,
+      3
+    )
   }
 }
 
@@ -868,49 +1031,42 @@ function dibujarObstaculos() {
   obstaculos.forEach((obstaculo) => {
     ctx.save()
 
-    ctx.shadowBlur = 15
-    ctx.shadowColor = "#ff526b"
+    if (obstaculo.tipo === "robot") {
+      const imagen = imagenes.robot
 
-    if (obstaculo.tipo === "bug") {
-      ctx.fillStyle = "#f05270"
-      ctx.fillRect(
-        obstaculo.x,
-        obstaculo.y,
-        obstaculo.ancho,
-        obstaculo.alto
-      )
+      if (imagen) {
+        const frame = obstaculo.frame || 0
 
-      ctx.fillStyle = "#ffffff"
-      ctx.fillRect(obstaculo.x + 12, obstaculo.y + 18, 8, 8)
-      ctx.fillRect(obstaculo.x + 34, obstaculo.y + 18, 8, 8)
+        ctx.shadowBlur = 18
+        ctx.shadowColor = "#ff334f"
+
+        ctx.drawImage(
+          imagen,
+          frame * 110 + animacionRobot.recorteX,
+          animacionRobot.recorteY,
+          animacionRobot.recorteAncho,
+          animacionRobot.recorteAlto,
+          obstaculo.x,
+          obstaculo.y,
+          obstaculo.ancho,
+          obstaculo.alto
+        )
+      }
     } else if (obstaculo.tipo === "error") {
-      ctx.fillStyle = "#9d4058"
-      ctx.fillRect(
-        obstaculo.x,
-        obstaculo.y,
-        obstaculo.ancho,
-        obstaculo.alto
-      )
+      const imagen = imagenes.robotVirus
 
-      ctx.fillStyle = "#ffffff"
-      ctx.font = "bold 25px monospace"
-      ctx.fillText("!", obstaculo.x + 25, obstaculo.y + 31)
-    } else {
-      ctx.fillStyle = "#9c55d6"
+      if (imagen) {
+        ctx.shadowBlur = 18
+        ctx.shadowColor = "#ff526b"
 
-      ctx.beginPath()
-      ctx.arc(
-        obstaculo.x + obstaculo.ancho / 2,
-        obstaculo.y + obstaculo.alto / 2,
-        obstaculo.ancho / 2,
-        0,
-        Math.PI * 2
-      )
-      ctx.fill()
-
-      ctx.fillStyle = "#ffffff"
-      ctx.font = "bold 15px monospace"
-      ctx.fillText("404", obstaculo.x + 7, obstaculo.y + 45)
+        ctx.drawImage(
+          imagen,
+          obstaculo.x,
+          obstaculo.y,
+          obstaculo.ancho,
+          obstaculo.alto
+        )
+      }
     }
 
     ctx.restore()
@@ -919,20 +1075,30 @@ function dibujarObstaculos() {
 
 function dibujarBananas() {
   bananas.forEach((banana) => {
+    let imagen
+
+    if (banana.puntos === 10) imagen = imagenes.bananaVerde
+    else if (banana.puntos === 20) imagen = imagenes.bananaAzul
+    else if (banana.puntos === 30) imagen = imagenes.bananaVioleta
+    else if (banana.puntos === 50) imagen = imagenes.bananaDorada
+
+    if (!imagen) return
+
+    const ancho = 34
+    const alto = 52
+
     ctx.save()
 
-    ctx.shadowBlur = 15
+    ctx.shadowBlur = 12
     ctx.shadowColor = banana.color
-    ctx.fillStyle = banana.color
 
-    ctx.beginPath()
-    ctx.arc(banana.x, banana.y, banana.radio, 0, Math.PI * 2)
-    ctx.fill()
-
-    ctx.fillStyle = "#071c25"
-    ctx.font = "bold 10px monospace"
-    ctx.textAlign = "center"
-    ctx.fillText(banana.puntos.toString(), banana.x, banana.y + 4)
+    ctx.drawImage(
+      imagen,
+      banana.x - ancho / 2,
+      banana.y - alto / 2,
+      ancho,
+      alto
+    )
 
     ctx.restore()
   })
@@ -1036,143 +1202,109 @@ onUnmounted(() => {
 })
 </script>
 
+
+
 <style scoped>
 .monkey-game {
+
+
   width: 100%;
-  max-width: 1100px;
-  margin: 0 auto;
-  color: #edf5f2;
+  min-height: 100dvh;
+  box-sizing: border-box;
+  padding: clamp(12px, 2.5vw, 28px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(10px, 1.8vh, 20px);
+  overflow-x: hidden;
+  color: #fff;
+  background:
+    radial-gradient(ellipse at top, rgba(30, 90, 57, 0.25), transparent 65%),
+    var(--game-dark);
 }
 
+.monkey-game *,
+.monkey-game *::before,
+.monkey-game *::after {
+  box-sizing: border-box;
+}
+
+/* ENCABEZADO */
 .game-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 22px;
+  width: min(100%, 960px);
+  text-align: center;
 }
 
 .game-eyebrow {
-  color: #65d995;
-  font-size: 11px;
+  margin: 0 0 5px;
+  color: var(--game-green);
+  font-size: clamp(10px, 1.5vw, 13px);
   font-weight: 800;
-  letter-spacing: 2px;
+  letter-spacing: 0.22em;
 }
 
-.game-header h1 {
-  margin: 7px 0;
-  font-size: clamp(25px, 4vw, 36px);
-  letter-spacing: -1.5px;
-}
-
-.game-header h1 span {
-  color: #75e7a3;
-}
-
-.game-header p {
+.game-title {
   margin: 0;
-  color: #8ba0b2;
-  font-size: 14px;
-}
-
-.game-button {
-  border: 0;
-  border-radius: 10px;
-  padding: 13px 22px;
-  background: #55c982;
-  color: #071a14;
-  font-weight: 800;
-  cursor: pointer;
-  transition: background 0.2s, transform 0.2s;
-}
-
-.game-button:hover {
-  background: #83e6a8;
-  transform: translateY(-2px);
-}
-
-.game-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.game-message {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 12px;
-  padding: 12px 16px;
-  border: 1px solid #315a4c;
-  border-radius: 10px;
-  background: #102b27;
-  color: #75e7a3;
-  font-size: 13px;
-}
-
-.game-message.error {
-  border-color: #8e3d4d;
-  background: #321c27;
-  color: #ff9ba9;
-}
-
-.game-hud {
-  display: grid;
-  grid-template-columns: 1fr 1fr 2fr;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.hud-item {
-  min-height: 68px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 5px;
-  padding: 10px 16px;
-  border: 1px solid #203d42;
-  border-radius: 11px;
-  background: #0d1a29;
-}
-
-.hud-item small {
-  color: #8ba0b2;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 1px;
-}
-
-.hud-item strong {
-  color: #75e7a3;
-  font-size: 22px;
-}
-
-.life-list {
-  display: flex;
-  gap: 9px;
-  flex-wrap: wrap;
-}
-
-.life-list span {
-  color: #75e7a3;
-  font-size: 13px;
+  font-size: clamp(24px, 5vw, 42px);
+  line-height: 1.1;
   font-weight: 900;
 }
 
-.life-list span.lost {
-  color: #53636d;
-  text-decoration: line-through;
-  opacity: 0.5;
+.game-description {
+  margin: 7px 0 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: clamp(11px, 1.8vw, 15px);
 }
 
+/* HUD */
+.game-hud {
+  width: min(100%, 960px);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(6px, 1.5vw, 14px);
+}
+
+.game-stat {
+  min-width: 0;
+  padding: clamp(8px, 1.5vw, 14px);
+  border: 1px solid rgba(139, 227, 107, 0.2);
+  border-radius: 12px;
+  background: var(--game-panel);
+  text-align: center;
+}
+
+.game-stat-label {
+  display: block;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: clamp(9px, 1.5vw, 12px);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.game-stat-value {
+  display: block;
+  margin-top: 3px;
+  color: var(--game-green);
+  font-size: clamp(17px, 3vw, 25px);
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+/* ESCENARIO */
 .game-board {
   position: relative;
-  overflow: hidden;
-  width: 100%;
+  width: min(100%, 960px, calc((100dvh - 270px) * 16 / 7));
   aspect-ratio: 960 / 420;
-  border: 1px solid #275b4a;
-  border-radius: 15px;
-  background: #071c25;
-  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.2);
+  max-height: none;
+  margin: auto;
+  overflow: hidden;
+  border: 2px solid rgba(139, 227, 107, 0.4);
+  border-radius: clamp(8px, 1.5vw, 16px);
+  background: #10251b;
+  box-shadow:
+    0 0 25px rgba(69, 190, 91, 0.12),
+    0 12px 35px rgba(0, 0, 0, 0.35);
 }
 
 .game-board canvas {
@@ -1181,166 +1313,188 @@ onUnmounted(() => {
   height: 100%;
 }
 
+/* OVERLAY */
 .game-overlay {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: rgba(4, 15, 22, 0.82);
-  backdrop-filter: blur(5px);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(6px, 1.5vh, 14px);
+  padding: clamp(10px, 3vw, 28px);
+  background: rgba(3, 12, 8, 0.82);
   text-align: center;
 }
 
-.overlay-content {
-  max-width: 430px;
-}
-
-.overlay-icon {
-  display: block;
-  margin-bottom: 12px;
-  color: #75e7a3;
-  font-size: 48px;
+.game-overlay h2 {
+  margin: 0;
+  color: var(--game-green);
+  font-size: clamp(22px, 5vw, 42px);
   font-weight: 900;
 }
 
-.overlay-content h2 {
-  margin: 0 0 10px;
-  font-size: clamp(24px, 4vw, 36px);
+.game-overlay p {
+  margin: 0;
+  font-size: clamp(12px, 2vw, 17px);
 }
 
-.overlay-content p {
-  color: #a9bdc8;
-  font-size: 14px;
-  line-height: 1.6;
+.game-overlay .game-result {
+  font-size: clamp(14px, 2.5vw, 21px);
+  font-weight: 800;
 }
 
-.final-score {
-  display: block;
-  margin: 10px 0;
-  color: #75e7a3;
-  font-size: 42px;
+/* BOTONES */
+.game-button {
+  max-width: 100%;
+  padding: clamp(9px, 1.5vw, 13px) clamp(16px, 3vw, 26px);
+  border: 0;
+  border-radius: 9px;
+  color: #07130f;
+  background: var(--game-green);
+  font-size: clamp(12px, 1.8vw, 15px);
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.2s, filter 0.2s;
 }
 
-.save-success {
-  color: #75e7a3 !important;
+.game-button:hover {
+  filter: brightness(1.1);
+  transform: translateY(-2px);
 }
 
-.save-error {
-  color: #ff9ba9 !important;
+.game-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
-.return-hint {
-  margin-top: 20px;
-  font-size: 12px !important;
+/* MENSAJES Y CONTROLES */
+.game-message {
+  width: min(100%, 960px);
+  margin: 0;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: clamp(11px, 1.7vw, 14px);
+  text-align: center;
 }
 
 .game-controls {
+  width: min(100%, 960px);
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 15px;
-  margin-top: 17px;
-}
-
-.game-controls p {
-  color: #8ba0b2;
-  font-size: 12px;
-}
-
-.game-controls strong {
-  color: #75e7a3;
-}
-
-.touch-controls {
-  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
-.control-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 15px;
-  border: 1px solid #315a4c;
-  border-radius: 9px;
-  background: #102b27;
-  color: #75e7a3;
-  font-size: 11px;
-  font-weight: 900;
-  cursor: pointer;
-  touch-action: none;
+.game-return-hint {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: clamp(10px, 1.5vw, 12px);
+  text-align: center;
 }
 
-.control-button span {
-  font-size: 20px;
+/* ESTADOS */
+.game-loading,
+.game-error {
+  width: min(100%, 960px);
+  padding: 18px;
+  border: 1px solid rgba(139, 227, 107, 0.2);
+  border-radius: 12px;
+  background: var(--game-panel);
+  text-align: center;
 }
 
-.control-button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+/* TABLETS */
+@media (max-width: 700px) {
+  .monkey-game {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .game-board {
+    width: min(100%, calc((100dvh - 240px) * 16 / 7));
+  }
+
+  .game-stat {
+    border-radius: 9px;
+  }
 }
 
-.game-rules {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 18px;
-  margin-top: 18px;
-  padding: 14px 0;
-  border-top: 1px solid #20364b;
-  color: #9db1bc;
-  font-size: 12px;
-}
+/* CELULARES */
+@media (max-width: 420px) {
+  .monkey-game {
+    padding: 8px;
+    gap: 9px;
+  }
 
-@media (max-width: 680px) {
-  .game-header {
-    align-items: flex-start;
-    flex-direction: column;
+  .game-board {
+    width: min(100%, calc((100dvh - 220px) * 16 / 7));
+    border-width: 1px;
   }
 
   .game-hud {
-    grid-template-columns: 1fr 1fr;
+    gap: 5px;
   }
 
-  .hud-item.lives {
-    grid-column: 1 / -1;
-  }
-
-  .game-controls {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .game-controls p {
-    text-align: center;
-  }
-
-  .touch-controls {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .control-button {
-    justify-content: center;
-    min-height: 55px;
+  .game-stat {
+    padding: 7px 4px;
   }
 
   .game-overlay {
-    padding: 10px;
+    gap: 5px;
+  }
+}
+
+/* PANTALLAS BAJAS, ESPECIALMENTE MÓVILES HORIZONTALES */
+@media (max-height: 600px) {
+  .monkey-game {
+    min-height: 100dvh;
+    padding-block: 6px;
+    gap: 6px;
   }
 
-  .overlay-icon {
-    margin-bottom: 3px;
-    font-size: 30px;
+  .game-header {
+    flex-shrink: 0;
   }
 
-  .overlay-content p {
-    margin: 5px 0;
-    font-size: 11px;
+  .game-title {
+    font-size: clamp(19px, 4vh, 28px);
   }
 
-  .overlay-content .game-button {
-    padding: 9px 15px;
+  .game-description {
+    margin-top: 3px;
+  }
+
+  .game-board {
+    width: min(100%, calc((100dvh - 155px) * 16 / 7));
+  }
+
+  .game-stat {
+    padding-block: 5px;
+  }
+
+  .game-stat-value {
+    font-size: clamp(15px, 3vh, 21px);
+  }
+
+  .game-return-hint {
+    font-size: 10px;
+  }
+}
+
+@media (max-height: 420px) {
+  .game-description {
+    display: none;
+  }
+
+  .game-board {
+    width: min(100%, calc((100dvh - 125px) * 16 / 7));
+  }
+
+  .game-overlay h2 {
+    font-size: clamp(18px, 6vh, 28px);
   }
 }
 </style>
+
+

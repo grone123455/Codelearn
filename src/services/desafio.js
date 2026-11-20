@@ -14,6 +14,35 @@ async function obtenerUsuarioActual() {
 }
 
 // ================================
+// PROCESAR ERROR DE EDGE FUNCTION
+// ================================
+
+async function obtenerErrorFuncion(error, mensajeDefecto) {
+  let respuesta = null
+
+  try {
+    const contexto = error?.context
+
+    if (contexto && typeof contexto.clone === "function") {
+      respuesta = await contexto.clone().json()
+    } else if (contexto && typeof contexto.json === "function") {
+      respuesta = await contexto.json()
+    }
+  } catch {
+    respuesta = null
+  }
+
+  const nuevoError = new Error(
+    respuesta?.error || error?.message || mensajeDefecto
+  )
+
+  nuevoError.codigo = respuesta?.codigo || null
+  nuevoError.cooldownHasta = respuesta?.cooldownHasta || null
+
+  return nuevoError
+}
+
+// ================================
 // INICIAR PARTIDA COMPETITIVA
 // ================================
 
@@ -34,8 +63,10 @@ export async function iniciarDesafioCompetitivo(partidaId) {
   )
 
   if (error) {
-    const mensaje = data?.error || error.message
-    throw new Error(mensaje || "No se pudo iniciar el desafío.")
+    throw await obtenerErrorFuncion(
+      error,
+      "No se pudo iniciar el desafío."
+    )
   }
 
   if (data?.error) {
@@ -156,7 +187,6 @@ export async function obtenerSiguientePregunta(partidaId) {
 // RESPONDER PREGUNTA COMPETITIVA
 // ================================
 
-
 export async function responderPreguntaCompetitiva(
   partidaId,
   preguntaId,
@@ -206,12 +236,9 @@ export async function responderPreguntaCompetitiva(
   return data.correcta
 }
 
-
 // ================================
 // FINALIZAR PARTIDA COMPETITIVA
 // ================================
-
-
 
 export async function finalizarDesafioCompetitivo(
   partidaId,
